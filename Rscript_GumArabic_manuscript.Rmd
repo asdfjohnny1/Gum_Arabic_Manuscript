@@ -1,0 +1,3857 @@
+---
+title: 'Final GA Figures '
+output:
+  html_document: default
+  pdf_document: default
+date: "`r Sys.Date()`"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## formating 
+```{r}
+library(styler)
+
+styler::style_dir("~/Library/CloudStorage/OneDrive-UniversityofEastAnglia/PhD/Gum_Arabic/Gum Arabic shared folder/final_R/Scripts/Files_uploaded_to_github")
+```
+
+##Colour Schemes
+
+```{r colour schemes}
+library(RColorBrewer)
+library(shades)
+
+# Heatmap colour palette
+pal1 <- colorRampPalette(c("#2F3180", "#1974D3", "#C5D6DB", "#FFF3E0", "#F765A3", "#B83253"))
+
+# abundance colour pallete (16 S)
+pal2 <- colorRampPalette(c(
+  "#FF0000", "#00FF00", "#0000FF", "#FF00FF", "#FFFF00", "#00FFFF", "#FFA500", "#800080",
+  "#008000", "#800000", "#FFC0CB", "#008080", "#FF7F50", "#FFD700", "#808080", "#800000",
+  "#00FF7F", "#000080", "#FF4500", "#8B008B", "#FFFFE0"
+))
+# 4 major phyla
+pal3 <- colorRampPalette(c("#FFFF00", "#008080", "#FF7F50", "#000080"))
+
+# male/female colour palette
+pal5_JAA_blueberry.lemon.CAKE <- colorRampPalette(c("#7c648d", "#F5BD1F"))
+
+# Treatment colour palette
+pal6 <- colorRampPalette(c("#264653", "#2A9D8F", "#E9C46A", "#F4A261", "#E76F51"))
+
+### AI plots colour palette Control VS GA
+pal7 <- colorRampPalette(c("#474787", "#E07A5F"))
+
+pal7.1 <- colorRampPalette(c("#474787", "#F4A261"))
+```
+
+##Directories
+
+```{r directories, message=FALSE, warning=FALSE}
+output_directory <- "~/Library/CloudStorage/OneDrive-UniversityofEastAnglia/PhD/Gum_Arabic/Gum Arabic shared folder/final_R/Scripts/Files_uploaded_to_github/delete"
+```
+
+## Heatmap
+```{r Heatmap, echo=TRUE, message=FALSE, warning=FALSE}
+library(readxl) # For reading Excel files
+library(dplyr) # For data manipulation
+library(janitor) # For cleaning column names
+library(tidyr) # For data tidying
+library(pheatmap) # For creating heatmaps
+library(gridExtra) # For arranging multiple grid-based plots
+library(ggplot2) # For creating and saving plots
+library(ComplexHeatmap) # For more complex heatmap visualizations (if needed)
+library(ggpubr)
+# Read data from Excel file
+hm.data <- read_excel(
+  "~/Library/CloudStorage/OneDrive-UniversityofEastAnglia/PhD/Gum_Arabic/Gum Arabic shared folder/Metabolomics_data/concentrations_Justin_July23 copie.xlsx"
+)
+
+# Clean column names (remove spaces, special characters, etc.)
+hm.data <- hm.data %>%
+  clean_names()
+
+# Keep only desired rows (rows 4 to 66 in this case)
+hm.data1 <- hm.data[4:66, ]
+
+# Remove rows with missing values (NA)
+hm.data1 <- na.omit(hm.data1)
+
+# Convert the data to a data frame
+hm.data1 <- as.data.frame(hm.data1)
+
+# Set the row names using the 'metabolite_id' column
+rownames <- hm.data1$metabolite_id
+
+# Apply the row names to the data frame
+rownames(hm.data1) <- rownames
+
+# Remove the 'metabolite_id' column (since it's now in the row names)
+hm.data1$metabolite_id <- NULL
+
+# Ensure all remaining columns are numeric
+heatmap.matrix <- hm.data1 %>%
+  mutate_all(as.numeric)
+
+# Change the column names to more descriptive labels
+colnames <- colnames(heatmap.matrix)
+
+# Simplify column names by removing prefixes and suffixes
+colnames <- gsub("brain_", "", colnames)
+colnames <- gsub("intestine_", "", colnames)
+colnames <- gsub("_percent", "%", colnames)
+
+# Define the final column names
+colnames1 <- c(
+  "male_control.B",
+  "female_control.B",
+  "male_6%.B",
+  "female_6%.B",
+  "male_60%.B",
+  "female_60%.B",
+  "male_control.I",
+  "female_control.I",
+  "male_6%.I",
+  "female_6%.I",
+  "male_60%.I",
+  "female_60%.I"
+)
+
+# Apply the new column names to the data matrix
+colnames(heatmap.matrix) <- colnames1
+
+# Create an annotation data frame for the columns
+annotation_col <- data.frame(Tissue = factor(rep(c(
+  "Brain", "Intestine"
+), each = 6))) # Assign Brain or Intestine to each group of 6 columns)
+
+# Set row names for the annotation data frame to match heatmap matrix column names
+rownames(annotation_col) <- colnames(heatmap.matrix)
+
+# Define custom colors for the annotations
+ann_colors <- list(
+  Tissue = c("Brain" = "#1B9E77", "Intestine" = "#D95F02")
+) # Set colors for Brain and Intestine)
+
+# Create the heatmap without clustering columns
+heatmap_CoolVersion_JAA <- pheatmap::pheatmap(
+  heatmap.matrix,
+  legend_breaks = c(-3, 0, 3, max(heatmap.matrix)),
+  # Define legend breaks
+  legend_labels = c("Low", "Medium", "High", "Title\n"),
+  # Define legend labels
+  legend = TRUE,
+  # Show legend
+  scale = "row",
+  # Scale by row
+  cluster_cols = FALSE,
+  # Do not cluster columns
+  color = pal1(100),
+  # Set color palette
+  angle_col = 45,
+  # Angle the column labels
+  cutree_rows = 2,
+  # Cut rows into 2 clusters
+  cutree_cols = 2,
+  # Cut columns into 2 clusters (though clustering is off)
+  fontsize = 12,
+  # Set font size
+  border_color = "grey65",
+  # Set border color
+  treeheight_row = 100,
+  # Set tree height for row dendrogram
+  annotation_col = annotation_col,
+  # Add column annotations
+  annotation_colors = ann_colors # Apply annotation colors
+)
+
+# Display the heatmaps
+dev.off() # Closes the current graphics device
+
+print(heatmap_CoolVersion_JAA) # Heatmap without column
+# Save the heatmaps to files (PNG,SVG, and PDF formats)
+ggsave(
+  paste0(output_directory, "/Heatmap_tweaked.png"),
+  heatmap_CoolVersion_JAA,
+  width = 10,
+  height = 12,
+  dpi = 600
+)
+ggsave(
+  paste0(output_directory, "/Heatmap_tweaked.svg"),
+  heatmap_CoolVersion_JAA,
+  width = 10,
+  height = 12,
+  dpi = 600
+)
+ggsave(
+  paste0(output_directory, "/Heatmap_tweaked.pdf"),
+  heatmap_CoolVersion_JAA,
+  width = 10,
+  height = 12,
+  dpi = 600
+)
+ggsave(
+  paste0(output_directory, "/Heatmap_tweaked.tiff"),
+  heatmap_CoolVersion_JAA,
+  width = 10,
+  height = 12,
+  dpi = 600
+) # TIFF
+```
+
+## Abundance plots
+
+```{r Abundance plots, echo=TRUE, message=FALSE, warning=FALSE}
+library(tibble) # For working with tibbles (modern reimagining of data frames)
+library(phyloseq) # For microbiome data analysis
+library(ggplot2) # Visualization package based on grammar of graphics (already loaded earlier)
+library(vegan) # For ecological and diversity analysis, useful in microbiome studies
+library(DESeq2) # For differential gene expression analysis using RNA-Seq count data
+library(ape) # For analysis of phylogenetics and evolutionary biology
+library(readxl) # To read Excel files (already loaded earlier)
+library(dplyr) # Data manipulation (part of the tidyverse)
+library(cowplot) # Additional tools to enhance ggplot2 graphics (plot grids, annotations)
+library(ggstance) # Horizontal versions of ggplot2's position adjustments and geoms
+library(ggpubr) # For combining and annotating plots
+library(paletteer) # Access to many color palettes for ggplot2 and other packages
+library(svglite) # SVG graphics device for creating high-quality vector graphics
+library(viridis) # Provides colorblind-friendly color maps for ggplot2
+library(RColorBrewer) # Provides color palettes for visualizations (already loaded)
+library(smplot2) # Simplified plotting methods for ggplot2
+library(patchwork) # Facilitates combining multiple ggplot2 plots into one
+library(rstatix) # Provides a simple, easy-to-use pipeline for statistical analysis in R
+library(shades) # For color manipulation
+
+# Set the working directory
+setwd(
+  "~/Library/CloudStorage/OneDrive-UniversityofEastAnglia/PhD/Gum_Arabic/Gum Arabic shared folder/16S_microbiome_data/Files for phyloseq"
+)
+
+# Load the data (OTU table, taxonomy, metadata)
+otu_table <- read.csv("OTU matrix_CSV.csv") # Read OTU table
+taxonomy <- read.csv("Taxonomy_CSV.csv") # Read taxonomy table
+metadata <- read.csv("metadataFish2023_660_Updated names copie.csv", sep = ";") # Read metadata
+
+# Set row names for data frames from relevant columns
+otu_table <- otu_table %>% tibble::column_to_rownames("OTUID")
+taxonomy <- taxonomy %>% tibble::column_to_rownames("OTUID")
+metadata <- metadata %>% tibble::column_to_rownames("sampleid")
+
+# Transform data frames into matrices
+otu_table <- as.matrix(otu_table)
+taxonomy <- as.matrix(taxonomy)
+
+# Load the phylogenetic tree
+phy_tree <- read_tree("tree.nwk")
+
+# Reorder metadata file based on specific columns
+metadata <- metadata %>% arrange(GA_experiment, condition, gender) # Sort by experiment, condition, and gender
+
+# Create an ID column for metadata and convert it to a factor
+metadata$ID <- rownames(metadata)
+metadata$ID <- as.factor(metadata$ID)
+
+# Transform the data into phyloseq objects
+OTU <- otu_table(otu_table, taxa_are_rows = TRUE)
+TAX <- tax_table(taxonomy)
+SAMPLES <- sample_data(metadata)
+phyloseq <- phyloseq(OTU, TAX, SAMPLES, phy_tree)
+
+# Normalize the data (rarefy to even sampling depth)
+total <- median(sample_sums(phyloseq)) # Calculate the median total count
+standf <- function(x, t = total) {
+  round(t * (x / sum(x)))
+} # Function to standardize counts
+phyloseq_rarefy <- transform_sample_counts(phyloseq, standf) # Rarefy the data
+
+# Create an interaction variable combining gender and condition
+phyloseq_rarefy@sam_data$gender_condition <- interaction(
+  phyloseq_rarefy@sam_data$gender,
+  phyloseq_rarefy@sam_data$condition
+)
+
+# Plot abundance of all phyla across samples
+p3.1 <- plot_bar(phyloseq_rarefy, x = "ID", fill = "Taxon_Phylum") +
+  facet_grid(~GA_experiment, scales = "free_x", space = "free_x") +
+  geom_bar(aes(color = Taxon_Phylum, fill = Taxon_Phylum),
+    stat = "identity",
+    position = "stack"
+  ) +
+  theme_classic2() +
+  theme(
+    legend.text = element_text(size = 10, face = "bold"),
+    legend.title = element_text(size = 13, face = "bold"),
+    legend.background = element_rect(fill = "white"),
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text = element_text(angle = 0, size = 10, face = "bold"),
+    axis.title = element_text(size = 13, face = "bold")
+  ) +
+  scale_fill_manual(values = pal2(21)) +
+  scale_colour_manual(values = pal2(21)) +
+  scale_x_discrete("Sample ID")
+
+# Save the abundance plot as PNG and SVG files
+ggsave(
+  paste0(output_directory, "/abundance_phyla_sampleID.png"),
+  p3.1,
+  width = 20,
+  height = 10,
+  dpi = 600
+)
+ggsave(
+  paste0(output_directory, "/abundance_phyla_sampleID.svg"),
+  p3.1,
+  width = 20,
+  height = 10,
+  dpi = 600
+)
+
+# Plot relative abundance of all taxa
+phyloseq_rarefy_rel_abundance <- transform_sample_counts(phyloseq_rarefy, function(x) {
+  x / sum(x)
+})
+
+# Subset taxa for the 4 major phyla
+phyloseq_rarefy_rel_abundance_4majorPhyla <- subset_taxa(
+  phyloseq_rarefy_rel_abundance,
+  Taxon_Phylum %in% c(
+    "D_1__Bacteroidetes",
+    "D_1__Fusobacteria",
+    "D_1__Firmicutes",
+    "D_1__Proteobacteria"
+  )
+)
+
+# Plot relative abundance of the 4 major phyla
+p6 <- plot_bar(phyloseq_rarefy_rel_abundance_4majorPhyla,
+  x = "gender_condition",
+  fill = "Taxon_Phylum"
+) +
+  geom_bar(aes(color = Taxon_Phylum, fill = Taxon_Phylum),
+    stat = "identity",
+    position = "stack"
+  ) +
+  scale_fill_manual(values = pal3(4)) +
+  scale_colour_manual(values = pal3(4)) +
+  facet_grid(~GA_experiment) +
+  ylab("Relative Abundance") +
+  scale_x_discrete(name = NULL) +
+  theme_classic2() +
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 10, face = "bold"),
+    legend.title = element_text(size = 13, face = "bold"),
+    legend.background = element_rect(fill = "white"),
+    legend.direction = "horizontal",
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.text = element_text(angle = 0, size = 11, face = "bold"),
+    axis.title = element_text(size = 13, face = "bold")
+  )
+
+# Save the relative abundance plot for the 4 major phyla
+ggsave(
+  paste0(
+    output_directory,
+    "/abundance_phyla_relative_4majorPhyla.png"
+  ),
+  p6,
+  width = 20,
+  height = 10,
+  dpi = 600
+)
+ggsave(
+  paste0(
+    output_directory,
+    "/abundance_phyla_relative_4majorPhyla.svg"
+  ),
+  p6,
+  width = 20,
+  height = 10,
+  dpi = 600
+)
+
+# Plot for a specific genus: Cetobacterium
+phyloseq_rarefy_rel_abundance_Ceto <- subset_taxa(
+  phyloseq_rarefy_rel_abundance,
+  Taxon_Genus %in% c("D_5__Cetobacterium")
+)
+
+# Plot relative abundance of Cetobacterium
+p8 <- plot_bar(phyloseq_rarefy_rel_abundance_Ceto,
+  x = "condition",
+  fill = "gender"
+) +
+  geom_bar(stat = "identity", position = "stack") +
+  scale_fill_manual(values = pal5_JAA_blueberry.lemon.CAKE(2)) +
+  scale_colour_manual(values = pal5_JAA_blueberry.lemon.CAKE(2)) +
+  facet_grid(~GA_experiment, scales = "free_x", space = "free_x") +
+  theme_classic2() +
+  scale_x_discrete(name = NULL) +
+  labs(y = expression(
+    bold("Relative Abundance of") ~ bolditalic("Cetobacterium") ~ bold("(%)")
+  )) +
+  theme(
+    legend.title = element_blank(),
+    legend.text = element_text(size = 12, face = "bold"),
+    legend.background = element_rect(fill = "white"),
+    legend.position = "right",
+    legend.direction = "vertical",
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.text = element_text(angle = 0, size = 12, face = "bold"),
+    axis.title = element_text(size = 12, face = "bold")
+  )
+
+# Save the plot for Cetobacterium
+ggsave(
+  paste0(output_directory, "/abundance_phyla_relative_ceto.png"),
+  p8,
+  width = 20,
+  height = 10,
+  dpi = 600
+)
+ggsave(
+  paste0(output_directory, "/abundance_phyla_relative_ceto.svg"),
+  p8,
+  width = 20,
+  height = 10,
+  dpi = 600
+)
+
+# Combine plots into a single figure using patchwork
+pp <- ((p3.1 / p6) | p8) +
+  plot_layout(widths = c(2, 1)) +
+  plot_annotation(tag_levels = "A") &
+  theme(plot.tag = element_text(size = 15)) # modified the tag size
+
+# Save the combined plot
+ggsave(
+  paste0(output_directory, "/abundance_patchwork.png"),
+  pp,
+  width = 30,
+  height = 15,
+  dpi = 600
+) # recommended dpi for publication
+ggsave(
+  paste0(output_directory, "/abundance_patchwork.svg"),
+  pp,
+  width = 30,
+  height = 15,
+  dpi = 600
+) # recommended dpi for publication
+ggsave(
+  paste0(output_directory, "/abundance_patchwork.pdf"),
+  pp,
+  width = 30,
+  height = 15,
+  dpi = 600
+) # recommended dpi for publication
+ggsave(
+  paste0(output_directory, "/abundance_patchwork.tiff"),
+  pp,
+  width = 30,
+  height = 15,
+  dpi = 600
+) # TIFF
+```
+
+#Statistics for alpha and beta diversity 
+```{r alpha beta stats, echo=TRUE, message=FALSE, warning=FALSE}
+setwd(
+  "~/Library/CloudStorage/OneDrive-UniversityofEastAnglia/PhD/Gum_Arabic/Gum Arabic shared folder/16S_microbiome_data/Files for phyloseq"
+)
+
+library(tibble) # For working with tibbles (modern reimagining of data frames)
+library(phyloseq) # For microbiome data analysis
+library(ggplot2) # Visualization package based on grammar of graphics (already loaded earlier)
+library(vegan) # For ecological and diversity analysis, useful in microbiome studies
+library(DESeq2) # For differential gene expression analysis using RNA-Seq count data
+library(ape) # For analysis of phylogenetics and evolutionary biology
+library(readxl) # To read Excel files (already loaded earlier)
+library(dplyr) # Data manipulation (part of the tidyverse)
+library(cowplot) # Additional tools to enhance ggplot2 graphics (plot grids, annotations)
+library(ggstance) # Horizontal versions of ggplot2's position adjustments and geoms
+library(ggpubr) # For combining and annotating plots
+library(paletteer) # Access to many color palettes for ggplot2 and other packages
+library(svglite) # SVG graphics device for creating high-quality vector graphics
+library(viridis) # Provides colorblind-friendly color maps for ggplot2
+library(RColorBrewer) # Provides color palettes for visualizations (already loaded)
+library(smplot2) # Simplified plotting methods for ggplot2
+library(patchwork) # Facilitates combining multiple ggplot2 plots into one
+library(rstatix) # Provides a simple, easy-to-use pipeline for statistical analysis in R
+library(shades) # For color manipulation
+
+# Load the data (otu table, taxonomy, metadata)
+otu_table <- read.csv("OTU matrix_CSV.csv")
+taxonomy <- read.csv("Taxonomy_CSV.csv")
+metadata <- read.csv("metadataFish2023_660_Updated names copie.csv", sep = ";")
+
+# Set row names for data frames
+otu_table <- otu_table %>% tibble::column_to_rownames("OTUID")
+taxonomy <- taxonomy %>% tibble::column_to_rownames("OTUID")
+metadata <- metadata %>% tibble::column_to_rownames("sampleid")
+
+# Transform otu and taxonomy into matrices
+otu_table <- as.matrix(otu_table)
+taxonomy <- as.matrix(taxonomy)
+
+# Load phylogenetic tree
+phy_tree <- read_tree("tree.nwk")
+
+# reorder metadata file
+metadata <- metadata %>% arrange(GA_experiment, condition, gender) ### sorting of the following columns in the metadata file
+
+metadata$ID <- rownames(metadata) ### create new column called ID in the metadata file
+
+metadata$ID <- as.factor(metadata$ID) ### transform from vector to factor (categorical variable/qualitative data)
+
+# Transform to phyloseq objects
+OTU <- otu_table(otu_table, taxa_are_rows = TRUE)
+TAX <- tax_table(taxonomy)
+SAMPLES <- sample_data(metadata)
+phyloseq <- phyloseq(OTU, TAX, SAMPLES, phy_tree)
+
+# Normalize the data (Rarefy?)
+total <- median(sample_sums(phyloseq))
+standf <- function(x, t = total) {
+  round(t * (x / sum(x)))
+}
+phyloseq_rarefy <- transform_sample_counts(phyloseq, standf)
+
+# Create an interaction variable
+phyloseq_rarefy@sam_data$gender_condition <- interaction(
+  phyloseq_rarefy@sam_data$gender,
+  phyloseq_rarefy@sam_data$condition
+)
+###### stats for alpha diversity
+library(vegan)
+
+
+# FOR OBSERVED ALPHA DIVERSITY FIRST
+# Subsetting data based on GA, Sex, and treatment
+sub_physeq <- subset_samples(phyloseq_rarefy, select = c(condition, gender, GA_experiment))
+
+# Calculate alpha diversity (replace 'metric' with the diversity metric of your choice)
+alpha_div <- estimate_richness(sub_physeq, measures = "Observed")
+
+# Extracting variables
+shannon_values <- alpha_div$Observed
+ga_values <- sample_data(sub_physeq)$condition
+sex_values <- sample_data(sub_physeq)$gender
+treatment_values <- sample_data(sub_physeq)$GA_experiment
+
+# Perform Kruskal-Wallis test for interaction for each level of treatment
+for (level in unique(treatment_values)) {
+  cat("Kruskal-Wallis test for treatment level:", level, "\n")
+  sub_shannon <- shannon_values[treatment_values == level]
+  sub_ga <- ga_values[treatment_values == level]
+  sub_sex <- sex_values[treatment_values == level]
+
+  # Check if there's at least one sample for the current treatment level
+  if (length(sub_shannon) > 0) {
+    kw_result <- kruskal.test(sub_shannon ~ interaction(sub_ga, sub_sex))
+
+    # Print result
+    print(kw_result)
+
+    # Check if the Kruskal-Wallis test is significant
+    if (kw_result$p.value < 0.05) {
+      # Perform Dunn's post hoc test
+      posthoc_result <- dunn.test::dunn.test(sub_shannon, interaction(sub_ga, sub_sex))
+      # Print post hoc test result
+      print(posthoc_result)
+    } else {
+      print("Kruskal-Wallis test is not significant. No post hoc test needed.")
+    }
+  } else {
+    print("No samples for the current treatment level.")
+  }
+}
+
+# RESULTS FOR OBSERVED -
+
+# FOR SHANNON DIVERSITY SECOND
+# Subsetting data based on GA, Sex, and treatment
+sub_physeq <- subset_samples(phyloseq_rarefy, select = c(condition, gender, GA_experiment))
+
+# Calculate alpha diversity (replace 'metric' with the diversity metric of your choice)
+alpha_div <- estimate_richness(sub_physeq, measures = "Shannon")
+
+# Extracting variables
+shannon_values <- alpha_div$Shannon
+ga_values <- sample_data(sub_physeq)$condition
+sex_values <- sample_data(sub_physeq)$gender
+treatment_values <- sample_data(sub_physeq)$GA_experiment
+
+# Perform Kruskal-Wallis test for interaction for each level of treatment
+for (level in unique(treatment_values)) {
+  cat("Kruskal-Wallis test for treatment level:", level, "\n")
+  sub_shannon <- shannon_values[treatment_values == level]
+  sub_ga <- ga_values[treatment_values == level]
+  sub_sex <- sex_values[treatment_values == level]
+
+  # Check if there's at least one sample for the current treatment level
+  if (length(sub_shannon) > 0) {
+    kw_result <- kruskal.test(sub_shannon ~ interaction(sub_ga, sub_sex))
+
+    # Print result
+    print(kw_result)
+
+    # Check if the Kruskal-Wallis test is significant
+    if (kw_result$p.value < 0.05) {
+      # Perform Dunn's post hoc test
+      posthoc_result <- dunn.test::dunn.test(sub_shannon, interaction(sub_ga, sub_sex))
+      # Print post hoc test result
+      print(posthoc_result)
+    } else {
+      print("Kruskal-Wallis test is not significant. No post hoc test needed.")
+    }
+  } else {
+    print("No samples for the current treatment level.")
+  }
+}
+
+
+
+
+######## BETA DIVERSITY
+
+# Get unique levels of GA_experiment
+ga_levels <- unique(sample_data(phyloseq_rarefy)$GA_experiment)
+
+# Create an empty list to store PERMANOVA results
+permanova_results <- list()
+
+# WEIGHTED DATA
+# Iterate over each level of GA_experiment
+for (level in ga_levels) {
+  cat("Running PERMANOVA for level:", level, "\n")
+
+  # Subset samples based on GA_experiment level
+  sub_physeq <- subset_samples(phyloseq_rarefy, GA_experiment == level)
+
+  # Calculate weighted UniFrac distances for the subsetted data
+  wUF_dist_subset <- phyloseq::distance(sub_physeq, method = "unifrac", weighted = TRUE)
+
+  # Perform PERMANOVA on the subsetted distances
+  permanova_result <- adonis2(
+    wUF_dist_subset ~ condition * gender,
+    data = as(sample_data(sub_physeq), "data.frame"),
+    na.rm = TRUE
+  )
+
+  # Store PERMANOVA result in the list
+  permanova_results[[level]] <- permanova_result
+}
+
+permanova_results_weighted_list <- list()
+# Print PERMANOVA results
+for (level in ga_levels) {
+  cat("PERMANOVA result for level:", level, "\n")
+  permanova_results_list <- permanova_results[[level]]
+}
+#############################
+##### UNWIGHTED DATA
+for (level in ga_levels) {
+  cat("Running PERMANOVA for level:", level, "\n")
+
+  # Subset samples based on GA_experiment level
+  sub_physeq <- subset_samples(phyloseq_rarefy, GA_experiment == level)
+
+  # Calculate weighted UniFrac distances for the subsetted data
+  unwUF_dist_subset <- phyloseq::distance(sub_physeq, method = "unifrac", weighted = FALSE)
+
+  # Perform PERMANOVA on the subsetted distances
+  permanova_result <- adonis2(
+    unwUF_dist_subset ~ condition * gender,
+    data = as(sample_data(sub_physeq), "data.frame"),
+    na.rm = TRUE
+  )
+
+  # Store PERMANOVA result in the list
+  permanova_results[[level]] <- permanova_result
+}
+permanova_results_un_weighted_list <- list()
+# Print PERMANOVA results
+for (level in ga_levels) {
+  cat("PERMANOVA result for level:", level, "\n")
+  permanova_results_un_weighted_list <- permanova_results[[level]]
+}
+```
+
+
+
+## Richness PLots 
+```{r Richness plots, echo=TRUE, message=FALSE, warning=FALSE}
+library(tibble) # For working with tibbles (modern reimagining of data frames)
+library(phyloseq) # For microbiome data analysis
+library(ggplot2) # Visualization package based on grammar of graphics (already loaded earlier)
+library(vegan) # For ecological and diversity analysis, useful in microbiome studies
+library(DESeq2) # For differential gene expression analysis using RNA-Seq count data
+library(ape) # For analysis of phylogenetics and evolutionary biology
+library(readxl) # To read Excel files (already loaded earlier)
+library(dplyr) # Data manipulation (part of the tidyverse)
+library(cowplot) # Additional tools to enhance ggplot2 graphics (plot grids, annotations)
+library(ggstance) # Horizontal versions of ggplot2's position adjustments and geoms
+library(ggpubr) # For combining and annotating plots
+library(paletteer) # Access to many color palettes for ggplot2 and other packages
+library(svglite) # SVG graphics device for creating high-quality vector graphics
+library(viridis) # Provides colorblind-friendly color maps for ggplot2
+library(RColorBrewer) # Provides color palettes for visualizations (already loaded)
+library(smplot2) # Simplified plotting methods for ggplot2
+library(patchwork) # Facilitates combining multiple ggplot2 plots into one
+library(rstatix) # Provides a simple, easy-to-use pipeline for statistical analysis in R
+library(shades) # For color manipulation
+
+# Set the working directory
+setwd(
+  "~/Library/CloudStorage/OneDrive-UniversityofEastAnglia/PhD/Gum_Arabic/Gum Arabic shared folder/16S_microbiome_data/Files for phyloseq"
+)
+# Load the data (otu table, taxonomy, metadata)
+otu_table <- read.csv("OTU matrix_CSV.csv")
+taxonomy <- read.csv("Taxonomy_CSV.csv")
+metadata <- read.csv("metadataFish2023_660_Updated names copie.csv", sep = ";")
+
+# Set row names for data frames
+otu_table <- otu_table %>% tibble::column_to_rownames("OTUID")
+taxonomy <- taxonomy %>% tibble::column_to_rownames("OTUID")
+metadata <- metadata %>% tibble::column_to_rownames("sampleid")
+
+# Transform otu and taxonomy into matrices
+otu_table <- as.matrix(otu_table)
+taxonomy <- as.matrix(taxonomy)
+
+# Load phylogenetic tree
+phy_tree <- read_tree("tree.nwk")
+
+# reorder metadata file
+metadata <- metadata %>% arrange(GA_experiment, condition, gender) ### sorting of the following columns in the metadata file
+
+metadata$ID <- rownames(metadata) ### create new column called ID in the metadata file
+
+metadata$ID <- as.factor(metadata$ID) ### transform from vector to factor (categorical variable/qualitative data)
+
+# Transform to phyloseq objects
+OTU <- otu_table(otu_table, taxa_are_rows = TRUE)
+TAX <- tax_table(taxonomy)
+SAMPLES <- sample_data(metadata)
+phyloseq <- phyloseq(OTU, TAX, SAMPLES, phy_tree)
+
+# Normalize the data (Rarefy?)
+total <- median(sample_sums(phyloseq))
+standf <- function(x, t = total) {
+  round(t * (x / sum(x)))
+}
+phyloseq_rarefy <- transform_sample_counts(phyloseq, standf)
+
+# Create an interaction variable
+phyloseq_rarefy@sam_data$gender_condition <- interaction(
+  phyloseq_rarefy@sam_data$gender,
+  phyloseq_rarefy@sam_data$condition
+)
+
+# Alpha-beta plots
+
+# alpha boxplots - observed
+
+# pre-plot graph to get oversved data to get stats on graph
+test <- plot_richness(
+  phyloseq_rarefy,
+  x = "Gumarabic_dose_percentage",
+  color = "gender",
+  measures = c("Observed")
+)
+# 3xtract data from graph
+test <- test$data
+
+stat.test2 <- test %>%
+  group_by(gender) %>%
+  t_test(value ~ Gumarabic_dose_percentage, p.adjust.method = "fdr")
+
+
+stat.test2 <- stat.test2 %>%
+  add_xy_position(x = "Gumarabic_dose_percentage") %>%
+  filter(gender == "Female" & p == "0.014") %>%
+  mutate(
+    xmin = case_when(
+      group1 == "60% Control" ~ xmin - 0.2, # Adjust for specific comparison
+      TRUE ~ xmin
+    ),
+    xmax = case_when(
+      group1 == "60% Control" ~ xmax - 0.2, # Adjust for specific comparison
+      TRUE ~ xmax
+    ),
+    y.position = 260 # Adjust y.position if needed
+  )
+
+p10.1 <- plot_richness(
+  phyloseq_rarefy,
+  x = "Gumarabic_dose_percentage",
+  color = "gender",
+  measures = c("Observed")
+) +
+  geom_jitter(
+    position = position_jitter(0.2),
+    size = 3,
+    alpha = 0.4,
+    show.legend = FALSE
+  ) +
+  geom_boxplot(alpha = 0.5, aes(fill = gender), show.legend = FALSE) +
+  theme_classic2() +
+  theme(
+    # Customize the appearance of the plot
+    legend.text = element_text(size = 13, face = "bold"),
+    legend.title = element_text(size = 13, face = "bold", hjust = 0.5),
+    legend.background = element_rect(fill = "white"),
+    axis.text.x = element_text(
+      angle = 0,
+      size = 12,
+      face = "bold",
+      vjust = 0.5,
+      hjust = 0.5
+    ),
+    axis.text = element_text(angle = 0, size = 12, face = "bold"),
+    axis.title = element_text(size = 14, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold"),
+  ) +
+  labs(x = NULL) +
+  scale_colour_manual(values = pal5_JAA_blueberry.lemon.CAKE(2)) +
+  scale_fill_manual(values = pal5_JAA_blueberry.lemon.CAKE(2)) +
+  theme(legend.title = element_blank())
+
+
+p10.1$layers <- p10.1$layers[-1]
+p10.1 <- p10.1 + stat_pvalue_manual(stat.test2, label = "p.adj.signif", tip.length = 0.02)
+p10.1
+
+# alpha boxplot - shannon
+p10.2 <- plot_richness(
+  phyloseq_rarefy,
+  x = "Gumarabic_dose_percentage",
+  color = "gender",
+  measures = c("Shannon")
+) +
+  geom_jitter(
+    position = position_jitter(0.2),
+    size = 3,
+    alpha = 0.4,
+    show.legend = FALSE
+  ) +
+  geom_boxplot(alpha = 0.5, aes(fill = gender), show.legend = FALSE) +
+  theme_classic2() +
+  theme(
+    # Customize the appearance of the plot
+    legend.text = element_text(size = 13, face = "bold"),
+    legend.title = element_text(size = 13, face = "bold", hjust = 0.5),
+    legend.background = element_rect(fill = "white"),
+    axis.text.x = element_text(
+      angle = 0,
+      size = 12,
+      face = "bold",
+      vjust = 0.5,
+      hjust = 0.5
+    ),
+    axis.text = element_text(angle = 0, size = 12, face = "bold"),
+    axis.title = element_text(size = 14, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold"),
+  ) +
+  labs(x = NULL) +
+  scale_colour_manual(values = pal5_JAA_blueberry.lemon.CAKE(2)) +
+  scale_fill_manual(values = pal5_JAA_blueberry.lemon.CAKE(2)) +
+  theme(legend.title = element_blank())
+
+p10.2$layers <- p10.2$layers[-1]
+p10.2
+
+
+
+# Save the plot
+
+ggsave(
+  paste0(output_directory, "/alpha_beta_boxplot.jpeg"),
+  p10.2,
+  width = 9,
+  height = 6,
+  dpi = 300
+)
+
+
+
+
+
+
+#######################################################
+# Beta diversity - Weighted UniFrac
+wUF.ordu_beta <- ordinate(
+  phyloseq_rarefy,
+  method = "NMDS",
+  distance = "unifrac",
+  weighted = TRUE
+)
+Weighted_beta <- plot_ordination(phyloseq_rarefy,
+  wUF.ordu_beta,
+  type = "sites",
+  color = "gender"
+) +
+  theme_classic2() +
+  stat_ellipse(
+    size = 1.5,
+    geom = "polygon",
+    ### fill the circle
+    alpha = 0.2,
+    ### transparency level
+    lwd = 1.1,
+    ### thickness of line
+    aes(fill = gender)
+    ### colour fill based on sex (red Vs blue)
+  ) +
+
+  geom_point(
+    size = 5,
+    alpha = 0.3,
+    aes(shape = gender),
+    show.legend = FALSE
+  ) +
+  ggtitle("Weighted UniFrac") +
+  scale_colour_manual(values = pal5_JAA_blueberry.lemon.CAKE(2)) +
+  scale_fill_manual(values = pal5_JAA_blueberry.lemon.CAKE(2)) +
+  facet_grid(~ GA_experiment * condition) +
+  theme(
+    # Customize the appearance of the plot
+    legend.text = element_text(size = 11, face = "bold"),
+    legend.title = element_blank(),
+    ## hjust= 0.5 for centre
+    legend.background = element_rect(fill = "white"),
+    legend.position = "right",
+    legend.direction = "vertical",
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.text = element_text(angle = 0, size = 11, face = "bold"),
+    axis.title = element_text(size = 13, face = "bold", hjust = 0.5),
+    plot.title = element_text(face = "bold", hjust = 0.5)
+  )
+
+Weighted_beta$layers <- Weighted_beta$layers[-1]
+
+Weighted_beta
+
+# Save the plot
+ggsave(
+  paste0(output_directory, "/betadiversity_weightedUnifrac.png"),
+  Weighted_beta,
+  width = 10,
+  height = 8,
+  dpi = 600
+)
+
+
+# Beta diversity - Unweighted UniFrac
+uwUF.ordu_beta <- ordinate(
+  phyloseq_rarefy,
+  method = "NMDS",
+  distance = "unifrac",
+  weighted = FALSE
+)
+UnWeighted_beta <- plot_ordination(phyloseq_rarefy,
+  uwUF.ordu_beta,
+  type = "sites",
+  color = "gender"
+) +
+  theme_classic2() +
+  stat_ellipse(
+    size = 1.5,
+    geom = "polygon",
+    ### fill the circle
+    alpha = 0.2,
+    ### transparency level
+    lwd = 1.1,
+    ### thickness of line
+    aes(fill = gender)
+    ### colour fill based on sex (red Vs blue)
+  ) +
+
+  geom_point(
+    size = 5,
+    alpha = 0.3,
+    aes(shape = gender),
+    show.legend = FALSE
+  ) +
+  ggtitle("Unweighted UniFrac") +
+  scale_colour_manual(values = pal5_JAA_blueberry.lemon.CAKE(2)) +
+  scale_fill_manual(values = pal5_JAA_blueberry.lemon.CAKE(2)) +
+  facet_grid(~ GA_experiment * condition) +
+  theme(
+    # Customize the appearance of the plot
+    legend.text = element_text(size = 11, face = "bold"),
+    legend.title = element_blank(),
+    ## hjust= 0.5 for centre
+    legend.background = element_rect(fill = "white"),
+    legend.position = "right",
+    legend.direction = "vertical",
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.text = element_text(angle = 0, size = 11, face = "bold"),
+    axis.title = element_text(size = 13, face = "bold", hjust = 0.5),
+    plot.title = element_text(face = "bold", hjust = 0.5)
+  )
+
+UnWeighted_beta$layers <- UnWeighted_beta$layers[-1]
+UnWeighted_beta
+
+# Save the plot
+
+ggsave(
+  paste0(output_directory, "/betadiversity_unweightedUnifrac.png"),
+  UnWeighted_beta,
+  width = 10,
+  height = 8,
+  dpi = 600
+)
+#####################################
+
+# Combine and arrange plots using patchwork
+library(patchwork)
+
+# Arrange and combine plots
+
+p <- ((p10.1 | p10.2) / (UnWeighted_beta | Weighted_beta)) +
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = "A") &
+  theme(plot.tag = element_text(size = 15)) # modified the tag size
+
+
+ggsave(
+  paste0(output_directory, "/beta_patchwork.png"),
+  p,
+  width = 30,
+  height = 15,
+  dpi = 600
+)
+ggsave(
+  paste0(output_directory, "/beta_patchwork.svg"),
+  p,
+  width = 30,
+  height = 15,
+  dpi = 600
+)
+ggsave(
+  paste0(output_directory, "/beta_patchwork.pdf"),
+  p,
+  width = 30,
+  height = 15,
+  dpi = 600
+)
+ggsave(
+  paste0(output_directory, "/beta_patchwork.tiff"),
+  p,
+  width = 30,
+  height = 15,
+  dpi = 600
+) # TIFF
+```
+
+#Phenotypic Data
+###phenotypic data - graphs 
+
+```{r phenotipic data, echo=TRUE, message=FALSE, warning=FALSE}
+library(readxl) # For reading Excel files
+library(lme4) # For fitting mixed-effects models
+library(car) # For general linear hypothesis and other regression utilities
+library(rmarkdown) # For creating dynamic reports in R
+library(MASS) # For statistical functions and datasets
+library(LambertW) # For Lambert W function transformations
+library(tidyr) # For data tidying
+library(emmeans) # For estimated marginal means (EMMs) and comparisons
+library(performance) # For checking model performance
+library(ggplot2) # For creating data visualizations
+library(ggbeeswarm) # For creating a beeswarm plot
+library(RColorBrewer) # For color palettes
+library(shades) # For working with colors and shades
+library(introdataviz) # For data visualization functions
+library(ggpubr) # For combining and annotating plots
+
+
+# Read data from an Excel file
+data <- read_excel(
+  "~/Library/CloudStorage/OneDrive-UniversityofEastAnglia/PhD/Gum_Arabic/Gum Arabic shared folder/final_R/Embryo_phenotypic_data.xlsx"
+)
+data$observation <- 1:nrow(data)
+
+# Remove NAs from the Clutch_production column
+data <- data[!is.na(data$Clutch_production), ]
+
+# Rename the GA column
+colnames(data)[14] <- c("GA")
+
+# Convert relevant columns to numeric and factor
+data$Clutch_production <- as.numeric(as.character(data$Clutch_production))
+data$Treatment <- as.factor(data$Treatment)
+
+# Rename log columns
+data$"log_Unfertilised_nb_2h" <- log(data$"Unfertilised_nb_2h")
+data$"log_Abnormal_nb_2h" <- log(data$"Abnormal_nb_2h")
+data$"log_Dead_nb_2h" <- log(data$"Dead_nb_2h")
+data$"log_Abnormal_nb_24h" <- log(data$"Abnormal_nb_24h")
+data$"log_Dead_nb_24h" <- log(data$"Dead_nb_24h")
+
+# Create a new column by uniting GA and Treatment
+data <- data %>%
+  unite("GA_Treatment",
+    GA,
+    Treatment,
+    remove = F,
+    sep = "_"
+  )
+
+# Remove certain values from the 2h_Counter column
+data$`2h_Counter`[data$`2h_Counter` %in% c("???", "Eve ????")] <- NA
+
+# Create a copy of the data for manipulation
+data$GA_Treatment_1 <- data$GA_Treatment
+test <- data
+
+# Standardize some values in GA_Treatment_1
+test$GA_Treatment_1[test$GA_Treatment_1 == c("6_C")] <- "C"
+test$GA_Treatment_1[test$GA_Treatment_1 == c("60_C")] <- "C"
+
+# Update the original data with the standardized values
+data <- test
+
+# Data analysis and visualization
+
+# Sara's model to check for overdispersion
+overdisp <- function(model) {
+  rdf <- df.residual(model)
+  rp <- residuals(model, type = "pearson")
+  Pearson.chisq <- sum(rp^2)
+  prat <- Pearson.chisq / rdf
+  pval <- pchisq(Pearson.chisq, df = rdf, lower.tail = FALSE)
+  c(
+    chisq = Pearson.chisq,
+    ratio = prat,
+    rdf = rdf,
+    p = pval
+  )
+}
+
+# splitting dataset by experiment
+library(dplyr)
+data.6 <- filter(data, GA %in% "6")
+data.60 <- filter(data, GA %in% "60")
+
+clutch_JAA <- data %>%
+  ggplot(mapping = aes(
+    y = Clutch_production,
+    x = Treatment,
+    fill = Sex,
+    colour = Sex
+  )) +
+  geom_jitter(
+    aes(shape = Sex, color = Sex),
+    position = position_jitter(0.2),
+    size = 3,
+    alpha = 0.2,
+    show.legend = F
+  ) +
+  stat_summary(
+    fun.data = "mean_se",
+    geom = "errorbar",
+    size = 0.8,
+    width = 0.07,
+    position = position_dodge(.175),
+    show.legend = F
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    size = 1.5,
+    alpha = 1,
+    position = position_dodge(.175),
+    show.legend = F
+  ) +
+  scale_x_discrete(name = NULL) + ### minor tweak
+  scale_y_continuous(name = "Clutch production (Y/N)") + ### minor aesthetic change
+  scale_fill_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) + ### new colours and names
+  scale_colour_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) + ### new colour and names
+  theme_classic2() +
+  theme(
+    # Customize the appearance of the plot
+    legend.text = element_text(size = 13, face = "bold"),
+    legend.title = element_blank(),
+    ### remove legend title
+    legend.background = element_rect(fill = "white"),
+    axis.text.x = element_text(
+      angle = 0,
+      size = 12,
+      face = "bold",
+      vjust = 0.5,
+      hjust = 0.5
+    ),
+    axis.text = element_text(angle = 0, size = 12, face = "bold"),
+    axis.title = element_text(size = 14, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold")
+  ) +
+  facet_wrap(~GA)
+
+clutch_JAA
+
+ggsave(
+  paste0(output_directory, "/clutch_production.png"),
+  clutch_JAA,
+  width = 15,
+  height = 10,
+  dpi = 600
+) ## high res
+ggsave(
+  paste0(output_directory, "/clutch_production.svg"),
+  clutch_JAA,
+  width = 15,
+  height = 10,
+  dpi = 600
+) ## high res
+
+###########################################
+
+
+##### weight figure (JAA) SUPPLEMENTARY FIGURE (MIGHT NOT USE!)
+weight_JAA <- data %>%
+  filter(GA == "60") %>%
+  ggplot(mapping = aes(
+    y = ((weight_after - weight_before) / weight_before),
+    x = Treatment,
+    fill = Sex,
+    colour = Sex
+  )) +
+  geom_jitter(
+    aes(shape = Sex, color = Sex),
+    position = position_jitter(0.2),
+    size = 3,
+    alpha = 0.2,
+    show.legend = F
+  ) +
+  introdataviz::geom_split_violin(alpha = .3, trim = FALSE) +
+  stat_summary(
+    fun.data = "mean_se",
+    geom = "errorbar",
+    size = 0.8,
+    width = 0.07,
+    position = position_dodge(.175),
+    show.legend = F
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    size = 1.5,
+    alpha = 1,
+    position = position_dodge(.175),
+    show.legend = F
+  ) +
+  scale_x_discrete(name = NULL) +
+  scale_y_continuous(name = "Weight change (%)") + ### minor aesthetic change
+  scale_fill_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) + ### new colours and titles
+  scale_colour_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) + ### new colour and titles
+  theme_classic2() +
+  theme(
+    # Customize the appearance of the plot
+    legend.text = element_text(size = 13, face = "bold"),
+    legend.title = element_blank(),
+    ### remove legend title
+    legend.background = element_rect(fill = "white"),
+    axis.text.x = element_text(
+      angle = 0,
+      size = 12,
+      face = "bold",
+      vjust = 0.5,
+      hjust = 0.5
+    ),
+    axis.text = element_text(angle = 0, size = 12, face = "bold"),
+    axis.title = element_text(size = 14, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold")
+  ) +
+  facet_wrap(~GA)
+
+weight_JAA
+
+ggsave(
+  paste0(output_directory, "/weight.png"),
+  weight_JAA,
+  width = 10,
+  height = 8,
+  dpi = 600
+) ## high res
+ggsave(
+  paste0(output_directory, "/weight.svg"),
+  weight_JAA,
+  width = 10,
+  height = 8,
+  dpi = 600
+)
+
+
+
+####### unfertilised 2hpf (JAA) LOG SCALE
+unfert_2hpf_JAA_log <- data %>%
+  ggplot(mapping = aes(
+    y = log10(Unfertilised_nb_2h / Egg_nb),
+    x = Treatment,
+    fill = Sex,
+    colour = Sex
+  )) +
+  geom_jitter(
+    aes(shape = Sex, color = Sex),
+    position = position_jitter(0.2),
+    size = 3,
+    alpha = 0.2,
+    show.legend = F
+  ) +
+  introdataviz::geom_split_violin(alpha = .3, trim = FALSE) +
+  stat_summary(
+    fun.data = "mean_se",
+    geom = "errorbar",
+    size = 0.8,
+    width = 0.07,
+    position = position_dodge(.175),
+    show.legend = F
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    size = 1.5,
+    alpha = 1,
+    position = position_dodge(.175),
+    show.legend = F
+  ) +
+  scale_x_discrete(name = NULL) +
+  scale_y_continuous(name = "Log Unfertilised embryos 2hpf (%)") +
+  scale_fill_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) +
+  scale_colour_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) +
+  theme_classic2() +
+  theme(
+    # Customize the appearance of the plot
+    legend.text = element_text(size = 13, face = "bold"),
+    legend.title = element_blank(),
+    ### remove legend title
+    legend.background = element_rect(fill = "white"),
+    axis.text.x = element_text(
+      angle = 0,
+      size = 12,
+      face = "bold",
+      vjust = 0.5,
+      hjust = 0.5
+    ),
+    axis.text = element_text(angle = 0, size = 12, face = "bold"),
+    axis.title = element_text(size = 14, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold")
+  ) +
+  facet_wrap(~GA)
+
+unfert_2hpf_JAA_log
+
+ggsave(
+  paste0(output_directory, "/unfert_2hpf_JAA .png"),
+  unfert_2hpf_JAA_log,
+  width = 15,
+  height = 10,
+  dpi = 600
+) ## high res
+ggsave(
+  paste0(output_directory, "/unfert_2hpf_JAA.svg"),
+  unfert_2hpf_JAA_log,
+  width = 15,
+  height = 10,
+  dpi = 600
+) ## high res
+
+
+###### Total eggs laid/clutch (JAA)
+egg_JAA <- data %>%
+  ggplot(mapping = aes(
+    y = Egg_nb,
+    x = Treatment,
+    fill = Sex,
+    colour = Sex
+  )) +
+  geom_jitter(
+    aes(shape = Sex, color = Sex),
+    position = position_jitter(0.2),
+    size = 3,
+    alpha = 0.2,
+    show.legend = F
+  ) +
+  introdataviz::geom_split_violin(alpha = .3, trim = FALSE) +
+  stat_summary(
+    fun.data = "mean_se",
+    geom = "errorbar",
+    size = 0.8,
+    width = 0.07,
+    position = position_dodge(.175),
+    show.legend = F
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    size = 1.5,
+    alpha = 1,
+    position = position_dodge(.175),
+    show.legend = F
+  ) +
+  scale_x_discrete(name = NULL) +
+  scale_y_continuous(name = "Total number of eggs laid per clutch ") +
+  scale_fill_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) +
+  scale_colour_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) +
+  theme_classic2() +
+  theme(
+    # Customize the appearance of the plot
+    legend.text = element_text(size = 13, face = "bold"),
+    legend.title = element_blank(),
+    ### remove legend title
+    legend.background = element_rect(fill = "white"),
+    axis.text.x = element_text(
+      angle = 0,
+      size = 12,
+      face = "bold",
+      vjust = 0.5,
+      hjust = 0.5
+    ),
+    axis.text = element_text(angle = 0, size = 12, face = "bold"),
+    axis.title = element_text(size = 14, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold")
+  ) +
+  facet_wrap(~GA)
+egg_JAA
+
+ggsave(
+  paste0(output_directory, "/Total eggsperclutch_JAA.png"),
+  egg_JAA,
+  width = 15,
+  height = 10,
+  dpi = 600
+) ## high res
+ggsave(
+  paste0(output_directory, "/Total eggsperclutch_JAA.svg"),
+  egg_JAA,
+  width = 15,
+  height = 10,
+  dpi = 600
+) ## high res
+
+
+############# EXTRA
+#### abnormal eggs after 2 hpf minor tweaks (JAA)
+abnormal_2hpf <- data %>%
+  ggplot(mapping = aes(
+    y = (Abnormal_nb_2h / Fertilised_nb_2h),
+    x = Treatment,
+    fill = Sex,
+    colour = Sex
+  )) +
+  geom_jitter(
+    aes(shape = Sex, color = Sex),
+    position = position_jitter(0.2),
+    size = 3,
+    alpha = 0.2,
+    show.legend = F
+  ) +
+  stat_summary(
+    fun.data = "mean_se",
+    geom = "errorbar",
+    size = 0.8,
+    width = 0.07,
+    position = position_dodge(.175),
+    show.legend = F
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    size = 1.5,
+    alpha = 1,
+    position = position_dodge(.175)
+  ) +
+  scale_x_discrete(name = NULL) +
+  scale_y_continuous(name = "Abnormal eggs 2 hpf (%)") +
+  scale_fill_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) +
+  scale_colour_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) +
+  theme_classic2() +
+  theme(
+    # Customize the appearance of the plot
+    legend.text = element_text(size = 13, face = "bold"),
+    legend.title = element_blank(),
+    ### remove legend title
+    legend.background = element_rect(fill = "white"),
+    axis.text.x = element_text(
+      angle = 0,
+      size = 12,
+      face = "bold",
+      vjust = 0.5,
+      hjust = 0.5
+    ),
+    axis.text = element_text(angle = 0, size = 12, face = "bold"),
+    axis.title = element_text(size = 14, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold")
+  ) +
+  facet_wrap(~GA)
+
+abnormal_2hpf
+
+ggsave(
+  paste0(output_directory, "/abnormal_2hpf .png"),
+  abnormal_2hpf,
+  width = 15,
+  height = 10,
+  dpi = 600
+) ## high res
+ggsave(
+  paste0(output_directory, "/abnormal_2hpf.svg"),
+  abnormal_2hpf,
+  width = 15,
+  height = 10,
+  dpi = 600
+) ## high res
+
+########################################### EXTRA
+################ dead_embryos2hpf (JAA)
+dead_embryos2hpf <- data %>%
+  ggplot(mapping = aes(
+    y = (Dead_nb_2h / Fertilised_nb_2h),
+    x = Treatment,
+    fill = Sex,
+    colour = Sex
+  )) +
+  geom_jitter(
+    aes(shape = Sex, color = Sex),
+    position = position_jitter(0.2),
+    size = 3,
+    alpha = 0.2,
+    show.legend = F
+  ) +
+  stat_summary(
+    fun.data = "mean_se",
+    geom = "errorbar",
+    size = 0.8,
+    width = 0.07,
+    position = position_dodge(.175),
+    show.legend = F
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    size = 1.5,
+    alpha = 1,
+    position = position_dodge(.175)
+  ) +
+  scale_x_discrete(name = NULL) +
+  scale_y_continuous(name = "Dead embryos 2 hpf (%) ") +
+  scale_fill_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) +
+  scale_colour_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) +
+  theme_classic2() +
+  theme(
+    # Customize the appearance of the plot
+    legend.text = element_text(size = 13, face = "bold"),
+    legend.title = element_blank(),
+    ### remove legend title
+    legend.background = element_rect(fill = "white"),
+    axis.text.x = element_text(
+      angle = 0,
+      size = 12,
+      face = "bold",
+      vjust = 0.5,
+      hjust = 0.5
+    ),
+    axis.text = element_text(angle = 0, size = 12, face = "bold"),
+    axis.title = element_text(size = 14, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold")
+  ) +
+  facet_wrap(~GA)
+
+dead_embryos2hpf
+
+ggsave(
+  paste0(output_directory, "/dead_embryos2hpf.png"),
+  dead_embryos2hpf,
+  width = 15,
+  height = 10,
+  dpi = 600
+) ## high res
+ggsave(
+  paste0(output_directory, "/dead_embryos2hpf.svg"),
+  dead_embryos2hpf,
+  width = 15,
+  height = 10,
+  dpi = 600
+) ## high res
+
+######## EXTRA
+######## abnormal eggs 24hpf (JAA)
+abnormal_24hpf <- data %>%
+  ggplot(mapping = aes(
+    y = (Abnormal_nb_24h / Fertilised_nb_2h),
+    x = Treatment,
+    fill = Sex,
+    colour = Sex
+  )) +
+  geom_jitter(
+    aes(shape = Sex, color = Sex),
+    position = position_jitter(0.2),
+    size = 3,
+    alpha = 0.2,
+    show.legend = F
+  ) +
+  stat_summary(
+    fun.data = "mean_se",
+    geom = "errorbar",
+    size = 0.8,
+    width = 0.07,
+    position = position_dodge(.175),
+    show.legend = F
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    size = 1.5,
+    alpha = 1,
+    position = position_dodge(.175)
+  ) +
+  scale_x_discrete(name = NULL) +
+  scale_y_continuous(name = "Abnormal eggs 24 hpf (%)") +
+  scale_fill_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) +
+  scale_colour_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) +
+  theme_classic2() +
+  theme(
+    # Customize the appearance of the plot
+    legend.text = element_text(size = 13, face = "bold"),
+    legend.title = element_blank(),
+    ### remove legend title
+    legend.background = element_rect(fill = "white"),
+    axis.text.x = element_text(
+      angle = 0,
+      size = 12,
+      face = "bold",
+      vjust = 0.5,
+      hjust = 0.5
+    ),
+    axis.text = element_text(angle = 0, size = 12, face = "bold"),
+    axis.title = element_text(size = 14, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold")
+  ) +
+  facet_wrap(~GA)
+
+abnormal_24hpf
+
+ggsave(
+  paste0(output_directory, "/abnormal_24hpf.png"),
+  abnormal_24hpf,
+  width = 15,
+  height = 10,
+  dpi = 600
+) ## high res
+ggsave(
+  paste0(output_directory, "/abnormal_24hpf.svg"),
+  abnormal_24hpf,
+  width = 15,
+  height = 10,
+  dpi = 600
+) ## high res
+
+######## dead embryos 24 hpf (JAA)
+dead24hpf <- data %>%
+  ggplot(mapping = aes(
+    y = (Dead_nb_24h / Fertilised_nb_2h),
+    x = Treatment,
+    fill = Sex,
+    colour = Sex
+  )) +
+  geom_jitter(
+    aes(shape = Sex, color = Sex),
+    position = position_jitter(0.2),
+    size = 3,
+    alpha = 0.2,
+    show.legend = F
+  ) +
+  introdataviz::geom_split_violin(alpha = .3, trim = FALSE) +
+  stat_summary(
+    fun.data = "mean_se",
+    geom = "errorbar",
+    size = 0.8,
+    width = 0.07,
+    position = position_dodge(.175),
+    show.legend = F
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    size = 1.5,
+    alpha = 1,
+    position = position_dodge(.175),
+    show.legend = F
+  ) +
+  scale_x_discrete(name = NULL) +
+  scale_y_continuous(name = "Dead embryos 24 hpf (%)") +
+  scale_fill_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) +
+  scale_colour_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) +
+  theme_classic2() +
+  theme(
+    # Customize the appearance of the plot
+    legend.text = element_text(size = 13, face = "bold"),
+    legend.title = element_blank(),
+    ### remove legend title
+    legend.background = element_rect(fill = "white"),
+    axis.text.x = element_text(
+      angle = 0,
+      size = 12,
+      face = "bold",
+      vjust = 0.5,
+      hjust = 0.5
+    ),
+    axis.text = element_text(angle = 0, size = 12, face = "bold"),
+    axis.title = element_text(size = 14, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold")
+  ) +
+  facet_wrap(~GA)
+
+dead24hpf
+
+ggsave(
+  paste0(output_directory, "/dead_24hpf.png"),
+  dead24hpf,
+  width = 15,
+  height = 10,
+  dpi = 600
+) ## high res
+ggsave(
+  paste0(output_directory, "/dead_24hpf.svg"),
+  dead24hpf,
+  width = 15,
+  height = 10,
+  dpi = 600
+) ## high res
+##############################################
+
+# Combine and arrange plots using patchwork
+library(patchwork)
+phenotypic_patwork_JAA <- (clutch_JAA |
+  egg_JAA) / (unfert_2hpf_JAA_log | dead24hpf) +
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = "A") &
+  theme(plot.tag = element_text(size = 15))
+
+phenotypic_patwork_JAA ### Final version
+
+
+ggsave(
+  paste0(output_directory, "/phenotypic_patchwork_JAA.png"),
+  phenotypic_patwork_JAA,
+  width = 30,
+  height = 15,
+  dpi = 600
+) ## high res
+ggsave(
+  paste0(output_directory, "/phenotypic_patchwork_JAA.svg"),
+  phenotypic_patwork_JAA,
+  width = 30,
+  height = 15,
+  dpi = 600
+) ## high res
+ggsave(
+  paste0(output_directory, "/phenotypic_patchwork_JAA.pdf"),
+  phenotypic_patwork_JAA,
+  width = 30,
+  height = 15,
+  dpi = 600
+) ## high res
+ggsave(
+  paste0(output_directory, "/phenotypic_patchwork_JAA.tiff"),
+  phenotypic_patwork_JAA,
+  width = 30,
+  height = 15,
+  dpi = 600
+) ## high res
+
+
+##### final patchwork (ALTERNATIVE)
+### patchwork with no legend (ALTERNATIVE VERSION)
+clutch_JAA_nolegend <- data %>%
+  ggplot(mapping = aes(
+    y = Clutch_production,
+    x = Treatment,
+    fill = Sex,
+    colour = Sex
+  )) +
+  geom_jitter(
+    aes(shape = Sex, color = Sex),
+    position = position_jitter(0.2),
+    size = 3,
+    alpha = 0.2,
+    show.legend = F
+  ) +
+  stat_summary(
+    fun.data = "mean_se",
+    geom = "errorbar",
+    size = 0.8,
+    width = 0.07,
+    position = position_dodge(.175),
+    show.legend = F
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    size = 1.5,
+    alpha = 1,
+    position = position_dodge(.175)
+  ) +
+  scale_x_discrete(name = NULL) + ### minor tweak
+  scale_y_continuous(name = "Clutch production (Y/N)") + ### minor aesthetic change
+  scale_fill_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) + ### new colours and titles
+  scale_colour_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) + ### new colour and titles
+  theme_classic2() +
+  theme(
+    # Customize the appearance of the plot
+    legend.position = "none",
+    legend.text = element_text(size = 13, face = "bold"),
+    legend.title = element_blank(),
+    ### remove legend title
+    legend.background = element_rect(fill = "white"),
+    axis.text.x = element_text(
+      angle = 0,
+      size = 12,
+      face = "bold",
+      vjust = 0.5,
+      hjust = 0.5
+    ),
+    axis.text = element_text(angle = 0, size = 12, face = "bold"),
+    axis.title = element_text(size = 14, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold")
+  ) +
+  facet_wrap(~GA)
+
+unfert_2hpf_JAA_nolegend <- data %>%
+  ggplot(mapping = aes(
+    y = (Unfertilised_nb_2h / Egg_nb),
+    x = Treatment,
+    fill = Sex,
+    colour = Sex
+  )) +
+  geom_jitter(
+    aes(shape = Sex, color = Sex),
+    position = position_jitter(0.2),
+    size = 3,
+    alpha = 0.2,
+    show.legend = F
+  ) +
+  stat_summary(
+    fun.data = "mean_se",
+    geom = "errorbar",
+    size = 0.8,
+    width = 0.07,
+    position = position_dodge(.175),
+    show.legend = F
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    size = 1.5,
+    alpha = 1,
+    position = position_dodge(.175)
+  ) +
+  scale_x_discrete(name = NULL) +
+  scale_y_continuous(name = "Unfertilised embryos 2 hpf (%)") +
+  scale_fill_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) +
+  scale_colour_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) +
+  theme_classic2() +
+  theme(
+    # Customize the appearance of the plot
+    legend.position = "none",
+    legend.text = element_text(size = 13, face = "bold"),
+    legend.title = element_blank(),
+    ### remove legend title
+    legend.background = element_rect(fill = "white"),
+    axis.text.x = element_text(
+      angle = 0,
+      size = 12,
+      face = "bold",
+      vjust = 0.5,
+      hjust = 0.5
+    ),
+    axis.text = element_text(angle = 0, size = 12, face = "bold"),
+    axis.title = element_text(size = 14, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold")
+  ) +
+  facet_wrap(~GA)
+
+clutch.1_JAA_no <- clutch_JAA_nolegend + theme(
+  axis.title.x = element_blank(),
+  axis.text.x = element_blank(),
+  axis.ticks.x = element_blank()
+)
+
+egg.1_JAA <- egg_JAA + theme(
+  axis.title.x = element_blank(),
+  axis.text.x = element_blank(),
+  axis.ticks.x = element_blank()
+)
+
+# Arrange and combine plots
+phenotypic_patwork_JAA_no <- (clutch.1_JAA_no + egg.1_JAA) / (unfert_2hpf_JAA_nolegend + dead24hpf) +
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = "A") &
+  theme(plot.tag = element_text(size = 18))
+
+phenotypic_patwork_JAA_no
+
+ggsave(
+  paste0(output_directory, "/phenotypic_patchwork_JAA_final.png"),
+  phenotypic_patwork_JAA_no,
+  width = 20,
+  height = 10,
+  dpi = 600
+) ## high res
+ggsave(
+  paste0(output_directory, "/phenotypic_patchwork_JAA_final.svg"),
+  phenotypic_patwork_JAA_no,
+  width = 20,
+  height = 10,
+  dpi = 600
+) ## high res
+
+################################ SI 2 hpf data#################################
+abnormal_2hpf <- data %>%
+  ggplot(mapping = aes(
+    y = log10(Abnormal_nb_2h / Fertilised_nb_2h),
+    x = Treatment,
+    fill = Sex,
+    colour = Sex
+  )) +
+  geom_jitter(
+    aes(shape = Sex, color = Sex),
+    position = position_jitter(0.2),
+    size = 3,
+    alpha = 0.2,
+    show.legend = F
+  ) +
+  stat_summary(
+    fun.data = "mean_se",
+    geom = "errorbar",
+    size = 0.8,
+    width = 0.07,
+    position = position_dodge(.175),
+    show.legend = F
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    size = 1.5,
+    alpha = 1,
+    position = position_dodge(.175)
+  ) +
+  scale_x_discrete(name = NULL) +
+  scale_y_continuous(name = "Log Abnormal eggs 2 hpf (%)") +
+  scale_fill_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) +
+  scale_colour_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) +
+  theme_classic2() +
+  theme(
+    # Customize the appearance of the plot
+    legend.text = element_text(size = 13, face = "bold"),
+    legend.title = element_blank(),
+    ### remove legend title
+    legend.background = element_rect(fill = "white"),
+    axis.text.x = element_text(
+      angle = 0,
+      size = 12,
+      face = "bold",
+      vjust = 0.5,
+      hjust = 0.5
+    ),
+    axis.text = element_text(angle = 0, size = 12, face = "bold"),
+    axis.title = element_text(size = 14, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold")
+  ) +
+  facet_wrap(~GA)
+
+abnormal_2hpf
+
+ggsave(
+  paste0(output_directory, "/abnormal_2hpf.png"),
+  abnormal_2hpf,
+  width = 15,
+  height = 10,
+  dpi = 600
+) ## high res
+ggsave(
+  paste0(output_directory, "/abnormal_2hpf.svg"),
+  abnormal_2hpf,
+  width = 15,
+  height = 10,
+  dpi = 600
+) ## high res
+
+####################
+################ dead_embryos2hpf (JAA)
+dead_embryos2hpf <- data %>%
+  ggplot(mapping = aes(
+    y = log10(Dead_nb_2h / Fertilised_nb_2h),
+    x = Treatment,
+    fill = Sex,
+    colour = Sex
+  )) +
+  geom_jitter(
+    aes(shape = Sex, color = Sex),
+    position = position_jitter(0.2),
+    size = 3,
+    alpha = 0.2,
+    show.legend = F
+  ) +
+  stat_summary(
+    fun.data = "mean_se",
+    geom = "errorbar",
+    size = 0.8,
+    width = 0.07,
+    position = position_dodge(.175),
+    show.legend = F
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    size = 1.5,
+    alpha = 1,
+    position = position_dodge(.175)
+  ) +
+  scale_x_discrete(name = NULL) +
+  scale_y_continuous(name = "Log Dead embryos 2 hpf (%) ") +
+  scale_fill_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) +
+  scale_colour_manual(
+    values = saturation(pal5_JAA_blueberry.lemon.CAKE(2), scalefac(1.2)),
+    labels = c("Female", "Male")
+  ) +
+  theme_classic2() +
+  theme(
+    # Customize the appearance of the plot
+    legend.text = element_text(size = 13, face = "bold"),
+    legend.title = element_blank(),
+    ### remove legend title
+    legend.background = element_rect(fill = "white"),
+    axis.text.x = element_text(
+      angle = 0,
+      size = 12,
+      face = "bold",
+      vjust = 0.5,
+      hjust = 0.5
+    ),
+    axis.text = element_text(angle = 0, size = 12, face = "bold"),
+    axis.title = element_text(size = 14, face = "bold"),
+    strip.text = element_text(size = 12, face = "bold")
+  ) +
+  facet_wrap(~GA)
+
+dead_embryos2hpf
+
+
+ggsave(
+  paste0(output_directory, "/dead_embryos2hpf.png"),
+  dead_embryos2hpf,
+  width = 15,
+  height = 10,
+  dpi = 600
+) ## high res
+ggsave(
+  paste0(output_directory, "/dead_embryos2hpf.svg"),
+  dead_embryos2hpf,
+  width = 15,
+  height = 10,
+  dpi = 600
+) ## high res
+
+#### patch work
+library(patchwork)
+patchwork <- abnormal_2hpf + dead_embryos2hpf +
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = "A")
+
+ggsave(
+  paste0(output_directory, "/patchwork2.png"),
+  patchwork,
+  width = 15,
+  height = 5,
+  dpi = 600
+) ## high res
+ggsave(
+  paste0(output_directory, "/patchwork2.svg"),
+  patchwork,
+  width = 15,
+  height = 5,
+  dpi = 600
+) ## high res
+```
+
+
+
+###phenotypic data - stats
+
+```{r phenotipic data stats, echo=TRUE, message=FALSE, warning=FALSE}
+###################### STATS##############
+
+library(readxl) # To read Excel files
+library(lme4) # For fitting linear and generalized mixed-effects models
+library(car) # Companion to Applied Regression; useful for statistical analysis
+library(rmarkdown) # To dynamically generate reports using R Markdown
+library(MASS) # Functions and datasets to support Venables and Ripley’s MASS book
+library(LambertW) # For Lambert W x F transformation, useful in handling non-normal data
+library(tidyr) # For tidying data (reshaping data frames)
+library(emmeans) # Estimated marginal means (least-squares means)
+library(performance) # For model quality diagnostics (like checking collinearity)
+library(ggplot2) # Visualization package based on grammar of graphics
+library(ggbeeswarm) # To create bee swarm plots (jittered points)
+library(RColorBrewer) # Provides color palettes for visualizations
+library(shades) # For manipulating colors and shading
+# devtools::install_github("psyteachr/introdataviz")
+library(introdataviz) # Data visualization tools
+library(ggpubr) # For publication-ready plots in ggplot2
+library(glmmTMB) # For fitting generalized linear mixed models (GLMM) using Template Model Builder
+library(ggpubr) # For combining and annotating plots
+
+
+
+##################################### LOOKING AT DATA###################################################
+
+
+data <- read_excel(
+  "~/Library/CloudStorage/OneDrive-UniversityofEastAnglia/PhD/Gum_Arabic/Gum Arabic shared folder/final_R/Embryo_phenotypic_data.xlsx"
+)
+data$observation <- 1:nrow(data)
+
+# removing NA's from deaths
+data <- data[!is.na(data$Clutch_production), ]
+
+str(data)
+data$Clutch_production <- as.numeric(as.character(data$Clutch_production))
+data$Treatment <- as.factor(data$Treatment)
+
+# renaming GA
+colnames(data)[14] <- c("GA")
+
+# loooking at distributions
+# making a dataframe with only variables interested \
+data.1 <- data[, c(17:21, 23, 24, 28)]
+data.1 <- data.1 + 1
+
+par(mfrow = c(2, 4))
+
+# basic normal distribution
+for (i in 1:ncol(data.1)) {
+  qqp(data.1[, i], main = names(data.1)[i], "norm")
+}
+# can see only egg , fertilised 2h, weight difference are normally distributed
+# those which werent normal log distribution
+
+par(mfrow = c(2, 4))
+for (i in 1:ncol(data.1)) {
+  qqp(log(data.1[, i]), main = names(data.1)[i], "norm")
+}
+
+# logging those which arent normal - WORKS
+data.2 <- log(data.1[, c(2, 4, 5, 6, 7)])
+
+par(mfrow = c(2, 4))
+for (i in 1:ncol(data.2)) {
+  qqp(data.2[, i], main = names(data.2)[i], "norm")
+}
+
+# now logging in final datadet
+data$"log_Unfertilised_nb_2h" <- log(data$"Unfertilised_nb_2h")
+data$"log_Abnormal_nb_2h" <- log(data$"Abnormal_nb_2h")
+data$"log_Dead_nb_2h" <- log(data$"Dead_nb_2h")
+data$"log_Abnormal_nb_24h" <- log(data$"Abnormal_nb_24h")
+data$"log_Dead_nb_24h" <- log(data$"Dead_nb_24h")
+
+
+data <- data %>%
+  unite("GA_Treatment",
+    GA,
+    Treatment,
+    remove = F,
+    sep = "_"
+  )
+
+
+# removing weird bits off data
+
+data$`2h_Counter`[data$`2h_Counter` %in% c("???", "Eve ????")] <- NA
+
+data$GA_Treatment_1 <- data$GA_Treatment
+test <- data
+
+test$GA_Treatment_1[test$GA_Treatment_1 == c("6_C")] <- "C"
+test$GA_Treatment_1[test$GA_Treatment_1 == c("60_C")] <- "C"
+
+data <- test
+# merging controls
+
+
+# Sara's model to check for overdispersion
+overdisp <- function(model) {
+  rdf <- df.residual(model)
+  rp <- residuals(model, type = "pearson")
+  Pearson.chisq <- sum(rp^2)
+  prat <- Pearson.chisq / rdf
+  pval <- pchisq(Pearson.chisq, df = rdf, lower.tail = FALSE)
+  c(
+    chisq = Pearson.chisq,
+    ratio = prat,
+    rdf = rdf,
+    p = pval
+  )
+}
+
+
+
+
+# percentage of work dowe by peopl e
+library(janitor)
+tabyl(data, `2h_Counter`) %>%
+  adorn_percentages("col") %>%
+  adorn_pct_formatting(digits = 1)
+
+# BOTH GAS CANNOT BE DIRECTLY COMPARED SO SPLITTING
+library(dplyr)
+data.6 <- filter(data, GA %in% "6")
+data.60 <- filter(data, GA %in% "60")
+
+
+#############################################################################
+# introducing tank ID - nop ebecasue there is no tank ID for ^)GA
+
+# 6
+modelClutch.10 <- glmer(
+  Clutch_production ~ GA_Treatment * Sex + (1 | Tank),
+  data = data.6,
+  na.action = na.omit,
+  family = binomial(link = "logit")
+)
+
+modelClutch.11 <- glmer(
+  Clutch_production ~ GA_Treatment + Sex + (1 | Tank),
+  data = data.6,
+  na.action = na.omit,
+  family = binomial(link = "logit")
+)
+
+modelClutch.12 <- glmer(
+  Clutch_production ~ GA_Treatment + (1 | Tank),
+  data = data.6,
+  na.action = na.omit,
+  family = binomial(link = "logit")
+)
+
+anova(modelClutch.10, modelClutch.11)
+anova(modelClutch.12, modelClutch.10) # in 6% 10 is  better
+
+# using 2 methodes to check for overdispersion - they are identical
+overdisp(modelClutch.10)
+check_overdispersion(modelClutch.10, Type = "III")
+
+# looking at output
+summary(modelClutch.10)
+Anova(modelClutch.10, type = "III")
+emmeans(modelClutch.10, list(pairwise ~ GA_Treatment), adjust = "tukey")
+
+# 60
+modelClutch.10 <- glmer(
+  Clutch_production ~ GA_Treatment * Sex + (1 | Tank),
+  data = data.60,
+  na.action = na.omit,
+  family = binomial(link = "logit")
+)
+modelClutch.11 <- glmer(
+  Clutch_production ~ GA_Treatment + Sex + (1 | Tank),
+  data = data.60,
+  na.action = na.omit,
+  family = binomial(link = "logit")
+)
+modelClutch.12 <- glmer(
+  Clutch_production ~ GA_Treatment + (1 | Tank),
+  data = data.60,
+  na.action = na.omit,
+  family = binomial(link = "logit")
+)
+
+anova(modelClutch.10, modelClutch.11)
+anova(modelClutch.12, modelClutch.10) # in 60% 10 is  better
+
+# using 2 methodes to check for overdispersion - they are identical
+overdisp(modelClutch.10)
+check_overdispersion(modelClutch.10, Type = "III")
+
+# looking at output
+summary(modelClutch.10)
+Anova(modelClutch.10, type = "III")
+emmeans(modelClutch.10, list(pairwise ~ GA_Treatment * Sex), adjust = "tukey")
+
+#############################################################################
+# Weight difference
+modelWeight.1 <- lmer(
+  (weight_after - weight_before) ~ GA_Treatment + Sex + weight_before +
+    (1 | Tank),
+  data = data,
+  na.action = na.omit
+)
+modelWeight.3 <- lmer(
+  (weight_after - weight_before) ~ GA_Treatment + weight_before +
+    (1 | Tank),
+  data = data,
+  na.action = na.omit
+)
+modelWeight.4 <- lmer(
+  (weight_after - weight_before) ~ GA_Treatment + (1 |
+    Tank),
+  data = data,
+  na.action = na.omit
+)
+modelWeight.5 <- lmer(
+  (weight_after - weight_before) ~ GA_Treatment + Sex +
+    (1 | Tank),
+  data = data,
+  na.action = na.omit
+)
+modelWeight.6 <- lmer(
+  (weight_after - weight_before) ~ GA_Treatment * Sex +
+    (1 | Tank),
+  data = data,
+  na.action = na.omit
+)
+modelWeight.7 <- lmer(
+  ((weight_after - weight_before) / weight_before) ~ GA_Treatment *
+    Sex + (1 | Tank),
+  data = data,
+  na.action = na.omit
+)
+
+anova(modelWeight.1, modelWeight.3)
+anova(modelWeight.1, modelWeight.4)
+anova(modelWeight.1, modelWeight.5)
+anova(modelWeight.1, modelWeight.6)
+anova(modelWeight.7, modelWeight.6) # 6 is the best - makes most sense biologically
+
+# check_overdispersion(modelWeight, Type = "III")#cannot use this one as it's neither poisson on binomial
+overdisp(modelWeight.6)
+
+# looking at output
+summary(modelWeight.6)
+Anova(modelWeight.6, Type = "III")
+emmeans(modelWeight.6, list(pairwise ~ GA_Treatment + Sex), adjust = "tukey")
+emmeans(modelWeight.6, list(pairwise ~ Sex), adjust = "tukey")
+# using 2 methodes to check for overdispersion
+
+
+#############################################################################
+# unfertilised 2h
+
+# 6% GA
+
+modelunfert2h <- glmer(
+  cbind(Unfertilised_nb_2h, Fertilised_nb_2h) ~ GA_Treatment * Sex + (1 |
+    `2h_Counter`),
+  data = data.6,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+) # binomial because it is a proportion between 0 and 1
+modelunfert2h.1 <- glmer(
+  cbind(Unfertilised_nb_2h, Fertilised_nb_2h) ~ GA_Treatment + Sex + (1 |
+    `2h_Counter`),
+  data = data.6,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+modelunfert2h.2 <- glmer(
+  cbind(Unfertilised_nb_2h, Fertilised_nb_2h) ~ GA_Treatment + Sex + (1 |
+    Tank),
+  data = data.6,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+modelunfert2h.3 <- glmer(
+  cbind(Unfertilised_nb_2h, Fertilised_nb_2h) ~ GA_Treatment + Sex + (1 |
+    `2h_Counter`) + (1 |
+    Tank),
+  data = data.6,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+modelunfert2h.4 <- glmer(
+  cbind(Unfertilised_nb_2h, Fertilised_nb_2h) ~ GA_Treatment * Sex + (1 |
+    `2h_Counter`) + (1 |
+    Tank),
+  data = data.6,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+
+anova(modelunfert2h, modelunfert2h.1)
+anova(modelunfert2h, modelunfert2h.4)
+anova(modelunfert2h.4, modelunfert2h.3) # 4 is the best
+
+# using 2 methodes to check for overdispersion - yes overdisperssed
+check_overdispersion(modelunfert2h.4, Type = "III")
+overdisp(modelunfert2h.4)
+
+# Trying to fix overdispersion
+# Observation-level random effects (OLRE) - using observation column
+modelunfert2h.4.1 <- glmer(
+  cbind(Unfertilised_nb_2h, Fertilised_nb_2h) ~ GA_Treatment * Sex + (1 |
+    `2h_Counter`) + (1 |
+    Tank) + (1 |
+    ID),
+  data = data.6,
+  family = binomial(link = "logit"),
+  na.action = na.omit,
+  glmerControl(optimizer = "bobyqa")
+)
+
+#
+check_overdispersion(modelunfert2h.4.1, Type = "III")
+overdisp(modelunfert2h.4.1)
+
+# looking at output
+summary(modelunfert2h.4.1)
+Anova(modelunfert2h.4.1, Type = "III")
+emmeans(modelunfert2h.4.1, list(pairwise ~ GA_Treatment + Sex), adjust = "tukey")
+# 60% GA
+
+
+modelunfert2h <- glmer(
+  cbind(Unfertilised_nb_2h, Fertilised_nb_2h) ~ GA_Treatment * Sex + (1 |
+    `2h_Counter`),
+  data = data.60,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+) # binomial because it is a proportion between 0 and 1
+modelunfert2h.1 <- glmer(
+  cbind(Unfertilised_nb_2h, Fertilised_nb_2h) ~ GA_Treatment + Sex + (1 |
+    `2h_Counter`),
+  data = data.60,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+modelunfert2h.2 <- glmer(
+  cbind(Unfertilised_nb_2h, Fertilised_nb_2h) ~ GA_Treatment + Sex + (1 |
+    Tank),
+  data = data.60,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+modelunfert2h.3 <- glmer(
+  cbind(Unfertilised_nb_2h, Fertilised_nb_2h) ~ GA_Treatment + Sex + (1 |
+    `2h_Counter`) + (1 |
+    Tank),
+  data = data.60,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+modelunfert2h.4 <- glmer(
+  cbind(Unfertilised_nb_2h, Fertilised_nb_2h) ~ GA_Treatment * Sex + (1 |
+    `2h_Counter`) + (1 |
+    Tank),
+  data = data.60,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+
+anova(modelunfert2h, modelunfert2h.1)
+anova(modelunfert2h, modelunfert2h.4)
+anova(modelunfert2h.4, modelunfert2h.3) # 4 is the best
+
+# using 2 methodes to check for overdispersion - yes overdisperssed
+check_overdispersion(modelunfert2h.4, Type = "III")
+overdisp(modelunfert2h.4)
+
+# Trying to fix overdispersion
+# Observation-level random effects (OLRE) - using observation column
+modelunfert2h.4.1 <- glmer(
+  cbind(Unfertilised_nb_2h, Fertilised_nb_2h) ~ GA_Treatment * Sex + (1 |
+    `2h_Counter`) + (1 |
+    Tank) + (1 |
+    ID),
+  data = data.60,
+  family = binomial(link = "logit"),
+  na.action = na.omit,
+  glmerControl(optimizer = "bobyqa")
+)
+
+#
+check_overdispersion(modelunfert2h.4.1, Type = "III")
+overdisp(modelunfert2h.4.1)
+
+# looking at output
+summary(modelunfert2h.4.1)
+Anova(modelunfert2h.4.1, Type = "III")
+emmeans(modelunfert2h.4.1, list(pairwise ~ GA_Treatment + Sex), adjust = "tukey")
+
+#############################################################################
+# Egg number
+# 6% GA
+
+hist(log10(data$Egg_nb))
+
+modelegg <- glmer(
+  Egg_nb ~ GA_Treatment * Sex + (1 |
+    Tank) + (1 |
+    `2h_Counter`),
+  data = data.6,
+  family = poisson(link = "log"),
+  na.action = na.omit
+)
+modelegg.1 <- glmer(
+  Egg_nb ~ GA_Treatment + Sex + (1 |
+    Tank) + (1 |
+    `2h_Counter`),
+  data = data.6,
+  family = poisson(link = "log"),
+  na.action = na.omit
+)
+modelegg.2 <- glmer(
+  Egg_nb ~ GA_Treatment * Sex + (1 |
+    `2h_Counter`),
+  data = data.6,
+  family = poisson(link = "log"),
+  na.action = na.omit
+)
+modelegg.3 <- glmer(
+  Egg_nb ~ GA_Treatment * Sex + (1 |
+    Tank),
+  data = data.6,
+  family = poisson(link = "log"),
+  na.action = na.omit
+)
+
+anova(modelegg, modelegg.1)
+anova(modelegg, modelegg.2)
+summary(modelegg) # 2497.3   2509.2  -1242.6   2485.3       48
+summary(modelegg.3) # 2657.5   2667.5  -1323.7   2647.5       50
+
+# First one is the best
+
+# using 2 methodes to check for overdispersion
+check_overdispersion(modelegg, Type = "III")
+overdisp(modelegg)
+
+data$observation <- 1:nrow(data)
+
+# Trying to fix overdispersion
+modelegg.4 <- glmer(
+  Egg_nb ~ GA_Treatment * Sex + (1 |
+    Tank) + (1 |
+    `2h_Counter`) + (1 |
+    observation),
+  data = data.6,
+  family = poisson(link = "log"),
+  na.action = na.omit,
+  glmerControl(optimizer = "bobyqa")
+)
+
+#
+check_overdispersion(modelegg.4, Type = "III")
+overdisp(modelegg.4)
+
+# still overdisperssed - log isnt good
+
+# looking at output
+
+summary(modelegg.4)
+Anova(modelegg.4, Type = "III")
+emmeans(modelegg.4, list(pairwise ~ GA_Treatment * Sex), adjust = "tukey")
+
+# 60% GA
+
+
+hist(log10(data$Egg_nb))
+
+modelegg <- glmer(
+  Egg_nb ~ GA_Treatment * Sex + (1 |
+    Tank) + (1 |
+    `2h_Counter`),
+  data = data.60,
+  family = poisson(link = "log"),
+  na.action = na.omit
+)
+modelegg.1 <- glmer(
+  Egg_nb ~ GA_Treatment + Sex + (1 |
+    Tank) + (1 |
+    `2h_Counter`),
+  data = data.60,
+  family = poisson(link = "log"),
+  na.action = na.omit
+)
+modelegg.2 <- glmer(
+  Egg_nb ~ GA_Treatment * Sex + (1 |
+    `2h_Counter`),
+  data = data.60,
+  family = poisson(link = "log"),
+  na.action = na.omit
+)
+modelegg.3 <- glmer(
+  Egg_nb ~ GA_Treatment * Sex + (1 |
+    Tank),
+  data = data.60,
+  family = poisson(link = "log"),
+  na.action = na.omit
+)
+
+anova(modelegg, modelegg.1)
+anova(modelegg, modelegg.2)
+summary(modelegg) # 1226.3   1237.7   -607.1   1214.3       44
+summary(modelegg.3) # 1696.3   1706.0   -843.1   1686.3       47
+
+# First one is the best
+
+# using 2 methodes to check for overdispersion
+check_overdispersion(modelegg, Type = "III")
+overdisp(modelegg)
+
+
+# Trying to fix overdispersion
+modelegg.4 <- glmer(
+  Egg_nb ~ GA_Treatment * Sex + (1 |
+    Tank) + (1 |
+    `2h_Counter`) + (1 |
+    observation),
+  data = data.60,
+  family = poisson(link = "log"),
+  na.action = na.omit,
+  glmerControl(optimizer = "bobyqa")
+)
+
+#
+check_overdispersion(modelegg.4, Type = "III")
+overdisp(modelegg.4)
+
+# still overdisperssed - log isnt good
+
+# looking at output
+
+summary(modelegg.4)
+Anova(modelegg.4, Type = "III")
+emmeans(modelegg.4, list(pairwise ~ GA_Treatment * Sex), adjust = "tukey")
+
+#############################################################################
+# abnormal 2h
+# 6%
+
+# one very high proportion abnormal sample removed - very weiurd sample
+data.2 <- data.6
+
+modelabnormal2h <- glmer(
+  cbind(Abnormal_nb_2h, (Fertilised_nb_2h - Abnormal_nb_2h)) ~ GA_Treatment +
+    Sex + (1 |
+      Tank),
+  data = data.2,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+modelabnormal2h.1 <- glmer(
+  cbind(Abnormal_nb_2h, (Fertilised_nb_2h - Abnormal_nb_2h)) ~ GA_Treatment *
+    Sex + (1 |
+      Tank),
+  data = data.2,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+modelabnormal2h.2 <- glmer(
+  cbind(Abnormal_nb_2h, (Fertilised_nb_2h - Abnormal_nb_2h)) ~ GA_Treatment +
+    Sex + (1 |
+      Tank) + (1 |
+      `2h_Counter`),
+  data = data.2,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+modelabnormal2h.3 <- glmer(
+  cbind(Abnormal_nb_2h, (Fertilised_nb_2h - Abnormal_nb_2h)) ~ GA_Treatment + (1 |
+    Tank) + (1 |
+    `2h_Counter`),
+  data = data.2,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+
+anova(modelabnormal2h, modelabnormal2h.1) # 284.87 290.76 -137.43   274.87 12.427
+summary(modelabnormal2h.2) # 293.0    298.6   -141.5    283.0       18
+summary(modelabnormal2h.3) # 302.7    307.2   -147.3    294.7       19
+
+# going to go with .3
+
+
+# using 2 methodes to check for overdispersion
+check_overdispersion(modelabnormal2h.3, Type = "III")
+overdisp(modelabnormal2h.3)
+
+# Trying to fix overdispersion
+modelabnormal2h.4 <- glmer(
+  cbind(Abnormal_nb_2h, (Fertilised_nb_2h - Abnormal_nb_2h)) ~ GA_Treatment + (1 |
+    Tank) + (1 |
+    `2h_Counter`) + (1 |
+    observation),
+  data = data.2,
+  family = binomial(link = "logit"),
+  glmerControl(optimizer = "bobyqa")
+)
+
+# using 2 methodes to check for overdispersion
+check_overdispersion(modelabnormal2h.4, Type = "III")
+overdisp(modelabnormal2h.4)
+
+# looking at output
+summary(modelabnormal2h.4)
+Anova(modelabnormal2h.4, Type = "III")
+emmeans(modelabnormal2h.4, list(pairwise ~ GA_Treatment), adjust = "tukey")
+
+
+# 60%
+# how does it differ between counters
+
+# one very high proportion abnormal sample removed - very weiurd sample
+data.2 <- data.60
+
+
+modelabnormal2h <- glmer(
+  cbind(Abnormal_nb_2h, (Fertilised_nb_2h - Abnormal_nb_2h)) ~ GA_Treatment +
+    Sex + (1 |
+      Tank),
+  data = data.2,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+modelabnormal2h.1 <- glmer(
+  cbind(Abnormal_nb_2h, (Fertilised_nb_2h - Abnormal_nb_2h)) ~ GA_Treatment *
+    Sex + (1 |
+      Tank),
+  data = data.2,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+modelabnormal2h.2 <- glmer(
+  cbind(Abnormal_nb_2h, (Fertilised_nb_2h - Abnormal_nb_2h)) ~ GA_Treatment +
+    Sex + (1 |
+      Tank) + (1 |
+      `2h_Counter`),
+  data = data.2,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+modelabnormal2h.3 <- glmer(
+  cbind(Abnormal_nb_2h, (Fertilised_nb_2h - Abnormal_nb_2h)) ~ GA_Treatment + (1 |
+    Tank) + (1 |
+    `2h_Counter`),
+  data = data.2,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+
+anova(modelabnormal2h, modelabnormal2h.1)
+summary(modelabnormal2h.2) # 151.7    161.3    -70.9    141.7       45
+summary(modelabnormal2h.3) # 150.3    158.0    -71.2    142.3       46
+
+# going with .3
+
+# using 2 methodes to check for overdispersion
+check_overdispersion(modelabnormal2h.2, Type = "III")
+overdisp(modelabnormal2h.2)
+
+# Trying to fix overdispersion
+modelabnormal2h.3.1 <- glmer(
+  cbind(Abnormal_nb_2h, (Fertilised_nb_2h - Abnormal_nb_2h)) ~ GA_Treatment + (1 |
+    Tank) + (1 |
+    `2h_Counter`) + (1 |
+    observation),
+  data = data.2,
+  family = binomial(link = "logit"),
+  glmerControl(optimizer = "bobyqa")
+)
+
+# using 2 methodes to check for overdispersion
+check_overdispersion(modelabnormal2h.3.1, Type = "III")
+overdisp(modelabnormal2h.3.1)
+
+# looking at output
+summary(modelabnormal2h.3.1)
+Anova(modelabnormal2h.3.1, Type = "III")
+emmeans(modelabnormal2h.3.1, list(pairwise ~ GA_Treatment), adjust = "tukey")
+#############################################################################
+# dead 2h
+
+# 6%
+modeldead2h <- glmer(
+  cbind(Dead_nb_2h, (Fertilised_nb_2h - Dead_nb_2h)) ~ 0 + GA_Treatment *
+    Sex + (1 |
+    Tank) + (1 |
+    `2h_Counter`),
+  data = data.6,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+modeldead2h.1 <- glmer(
+  cbind(Dead_nb_2h, (Fertilised_nb_2h - Dead_nb_2h)) ~ 0 + GA_Treatment +
+    Sex + (1 |
+      Tank) + (1 |
+      `2h_Counter`),
+  data = data.6,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+
+
+anova(modeldead2h, modeldead2h.1)
+
+
+
+# using 2 methodes to check for overdispersion
+check_overdispersion(modeldead2h, Type = "III")
+overdisp(modeldead2h)
+
+# Trying to fix overdispersion
+modeldead2h.2 <- glmer(
+  cbind(Dead_nb_2h, (Fertilised_nb_2h - Dead_nb_2h)) ~ GA_Treatment * Sex +
+    (1 |
+      Tank) + (1 |
+      `2h_Counter`) + (1 |
+      observation),
+  data = data.6,
+  family = binomial(link = "logit"),
+  na.action = na.omit,
+  glmerControl(optimizer = "bobyqa")
+)
+
+overdisp(modeldead2h.2)
+
+# looking at output
+summary(modeldead2h.2)
+Anova(modeldead2h.2, Type = "III")
+emmeans(modeldead2h.2, list(pairwise ~ GA_Treatment * Sex), adjust = "tukey")
+
+
+# 60%
+
+
+modeldead2h <- glmer(
+  cbind(Dead_nb_2h, (Fertilised_nb_2h - Dead_nb_2h)) ~ 0 + GA_Treatment *
+    Sex + (1 |
+    Tank) + (1 |
+    `2h_Counter`),
+  data = data.60,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+modeldead2h.1 <- glmer(
+  cbind(Dead_nb_2h, (Fertilised_nb_2h - Dead_nb_2h)) ~ 0 + GA_Treatment +
+    Sex + (1 |
+      Tank) + (1 |
+      `2h_Counter`),
+  data = data.60,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+
+
+anova(modeldead2h, modeldead2h.1)
+
+
+
+# using 2 methodes to check for overdispersion
+check_overdispersion(modeldead2h, Type = "III")
+overdisp(modeldead2h)
+
+# Trying to fix overdispersion
+modeldead2h.2 <- glmer(
+  cbind(Dead_nb_2h, (Fertilised_nb_2h - Dead_nb_2h)) ~ GA_Treatment * Sex +
+    (1 |
+      Tank) + (1 |
+      `2h_Counter`) + (1 |
+      observation),
+  data = data.60,
+  family = binomial(link = "logit"),
+  na.action = na.omit,
+  glmerControl(optimizer = "bobyqa")
+)
+
+overdisp(modeldead2h.2)
+
+# looking at output
+summary(modeldead2h.2)
+Anova(modeldead2h.2, Type = "III")
+emmeans(modeldead2h.2, list(pairwise ~ GA_Treatment * Sex), adjust = "tukey")
+
+#############################################################################
+# abnormal 24h
+
+# 6%
+
+modelab24 <- glmer(
+  cbind(Abnormal_nb_24h, (Fertilised_nb_2h - Abnormal_nb_24h)) ~ GA_Treatment *
+    Sex + (1 |
+      Tank),
+  data = data.6,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+modelab24.1 <- glmer(
+  cbind(Abnormal_nb_24h, (Fertilised_nb_2h - Abnormal_nb_24h)) ~ GA_Treatment +
+    Sex + (1 |
+      Tank),
+  data = data.6,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+modelab24.2 <- glmer(
+  cbind(Abnormal_nb_24h, (Fertilised_nb_2h - Abnormal_nb_24h)) ~ GA_Treatment *
+    Sex + (1 |
+      Tank) + (1 |
+      `2h_Counter`),
+  data = data.6,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+
+anova(modelab24, modelab24.1)
+summary(modelab24.2) # 462.4    474.4   -225.2    450.4       48
+
+# going with .2
+
+# using 2 methodes to check for overdispersion
+check_overdispersion(modelab24.2, Type = "III")
+overdisp(modelab24.2)
+
+# Trying to fix overdispersion
+modelab24.3 <- glmer(
+  cbind(Abnormal_nb_24h, (Fertilised_nb_2h - Abnormal_nb_24h)) ~ GA_Treatment *
+    Sex + (1 |
+      Tank) + (1 |
+      `2h_Counter`) + (1 |
+      observation),
+  data = data.6,
+  family = binomial(link = "logit"),
+  na.action = na.omit,
+  glmerControl(optimizer = "bobyqa")
+)
+
+
+check_overdispersion(modelab24.3, Type = "III")
+
+
+
+# looking at output
+summary(modelab24.3)
+Anova(modelab24.3, Type = "III")
+emmeans(modelab24.3, list(pairwise ~ GA_Treatment * Sex), adjust = "tukey")
+
+# 60%
+
+modelab24 <- glmer(
+  cbind(Abnormal_nb_24h, (Fertilised_nb_2h - Abnormal_nb_24h)) ~ GA_Treatment *
+    Sex + (1 |
+      Tank),
+  data = data.60,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+modelab24.1 <- glmer(
+  cbind(Abnormal_nb_24h, (Fertilised_nb_2h - Abnormal_nb_24h)) ~ GA_Treatment +
+    Sex + (1 |
+      Tank),
+  data = data.60,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+modelab24.2 <- glmer(
+  cbind(Abnormal_nb_24h, (Fertilised_nb_2h - Abnormal_nb_24h)) ~ GA_Treatment *
+    Sex + (1 |
+      Tank) + (1 |
+      `2h_Counter`),
+  data = data.60,
+  family = binomial(link = "logit"),
+  na.action = na.omit
+)
+
+anova(modelab24, modelab24.1)
+summary(modelab24.2) # 462.4    474.4   -225.2    450.4       48
+
+# going with .2
+
+# using 2 methodes to check for overdispersion
+check_overdispersion(modelab24.2, Type = "III")
+overdisp(modelab24.2)
+
+# Trying to fix overdispersion
+modelab24.3 <- glmer(
+  cbind(Abnormal_nb_24h, (Fertilised_nb_2h - Abnormal_nb_24h)) ~ GA_Treatment *
+    Sex + (1 |
+      Tank) + (1 |
+      `2h_Counter`) + (1 |
+      observation),
+  data = data.60,
+  family = binomial(link = "logit"),
+  na.action = na.omit,
+  glmerControl(optimizer = "bobyqa")
+)
+
+
+check_overdispersion(modelab24.3, Type = "III")
+
+
+
+# looking at output
+summary(modelab24.3)
+Anova(modelab24.3, Type = "III")
+emmeans(modelab24.3, list(pairwise ~ GA_Treatment * Sex), adjust = "tukey")
+#############################################################################
+# dead 24h
+
+
+# 6%
+
+modeldead24h <- glmer(
+  cbind(Dead_nb_24h, (Egg_nb - Dead_nb_24h)) ~ GA_Treatment * Sex + (1 |
+    Tank) + (1 |
+    `2h_Counter`),
+  data = data.6,
+  family = binomial(link = "logit")
+)
+
+modeldead24h.1 <- glmer(
+  cbind(Dead_nb_24h, (Egg_nb - Dead_nb_24h)) ~ GA_Treatment * Sex + (1 |
+    Tank),
+  data = data.6,
+  family = binomial(link = "logit")
+)
+
+modeldead24h.2 <- glmer(
+  cbind(Dead_nb_24h, (Egg_nb - Dead_nb_24h)) ~ GA_Treatment + Sex + (1 |
+    Tank) + (1 |
+    `2h_Counter`),
+  data = data.6,
+  family = binomial(link = "logit")
+)
+
+summary(modeldead24h.1) # 1208.3   1218.4   -599.2   1198.3       50
+anova(modeldead24h, modeldead24h.2) # first one better
+
+# using 2 methodes to check for overdispersion
+check_overdispersion(modeldead24h, Type = "III")
+overdisp(modeldead24h)
+
+# Trying to fix overdispersion
+modeldead24h.01 <- glmer(
+  cbind(Dead_nb_24h, (Egg_nb - Dead_nb_24h)) ~ GA_Treatment * Sex + (1 |
+    Tank) + (1 |
+    `2h_Counter`) + (1 |
+    observation),
+  family = binomial(link = "logit"),
+  data = data.6,
+  na.action = na.omit,
+  glmerControl(optimizer = "bobyqa")
+)
+
+check_overdispersion(modeldead24h.01, Type = "III")
+# looking at output
+summary(modeldead24h.01)
+Anova(modeldead24h.01, Type = "III")
+emmeans(modeldead24h.01, list(pairwise ~ GA_Treatment * Sex), adjust = "tukey")
+
+
+# 60%
+
+modeldead24h <- glmer(
+  cbind(Dead_nb_24h, (Egg_nb - Dead_nb_24h)) ~ GA_Treatment * Sex + (1 |
+    Tank) + (1 |
+    `2h_Counter`),
+  data = data.60,
+  family = binomial(link = "logit")
+)
+
+modeldead24h.1 <- glmer(
+  cbind(Dead_nb_24h, (Egg_nb - Dead_nb_24h)) ~ GA_Treatment * Sex + (1 |
+    Tank),
+  data = data.60,
+  family = binomial(link = "logit")
+)
+
+modeldead24h.2 <- glmer(
+  cbind(Dead_nb_24h, (Egg_nb - Dead_nb_24h)) ~ GA_Treatment + Sex + (1 |
+    Tank) + (1 |
+    `2h_Counter`),
+  data = data.60,
+  family = binomial(link = "logit")
+)
+
+summary(modeldead24h.1) # 1208.3   1218.4   -599.2   1198.3       50
+anova(modeldead24h, modeldead24h.2) # first one better
+
+# using 2 methodes to check for overdispersion
+check_overdispersion(modeldead24h, Type = "III")
+overdisp(modeldead24h)
+
+# Trying to fix overdispersion
+modeldead24h.01 <- glmer(
+  cbind(Dead_nb_24h, (Egg_nb - Dead_nb_24h)) ~ GA_Treatment * Sex + (1 |
+    Tank) + (1 |
+    `2h_Counter`) + (1 |
+    observation),
+  family = binomial(link = "logit"),
+  data = data.60,
+  na.action = na.omit,
+  glmerControl(optimizer = "bobyqa")
+)
+
+check_overdispersion(modeldead24h.01, Type = "III")
+# looking at output
+summary(modeldead24h.01)
+Anova(modeldead24h.01, Type = "III")
+emmeans(modeldead24h.01, list(pairwise ~ GA_Treatment * Sex), adjust = "tukey")
+```
+
+
+
+#AI data
+
+###AI data processing 
+
+```{r AI processing, echo=TRUE, message=FALSE, warning=FALSE}
+library(readr) # For reading CSV files
+library(dplyr) # For data manipulation
+library(RColorBrewer) # For color palettes
+library(patchwork) # For combining multiple ggplot2 plots
+library(ggplot2) # For data visualization
+library(shades) # For working with colors in R
+library(ggbeeswarm) # For creating bee swarm plots
+library(introdataviz) # Data visualization package for R (from psyteachr)
+library(ggpubr) # For publication-ready ggplot2 themes and utilities
+library(lme4) # For linear and generalized linear mixed-effects models
+library(car) # Companion to applied regression; offers hypothesis testing functions
+library(emmeans) # For estimated marginal means and pairwise comparisons
+library(glmmTMB) # Generalized linear mixed models using Template Model Builder
+library(tidyr) # For data tidying
+library(ggpubr) # For combining and annotating plots
+
+# Define a function to process each trajectory file
+process_trajectory <- function(file_path) {
+  # Read the CSV file for each fish trajectory
+  data <- read_csv(file_path)
+
+  # Rename the columns from 'x' and 'y' to 'xFish' and 'yFish' respectively
+  names <- names(data)
+  names <- gsub("x", "xFish", names)
+  names <- gsub("y", "yFish", names)
+  names(data) <- names
+
+  # Calculate the count of missing values (NA) in each column
+  count_na <- function(column) {
+    sum(is.na(column))
+  }
+  na_counts <- as.data.frame(sapply(data, count_na))
+
+  # Calculate the number of non-NA frames used per column
+  calculate_total_row_without_na <- function(data_frame) {
+    total_per_column <- apply(data_frame, 2, function(col) {
+      sum(!is.na(col))
+    })
+    return(total_per_column)
+  }
+  used_frames <- calculate_total_row_without_na(data)
+
+  # Calculate the distance traveled between consecutive points using the Pythagorean theorem (hypotenuse)
+  calculate_pythagorean_hypotenuse_pairs <- function(data_frame) {
+    num_columns <- ncol(data_frame)
+    hypotenuses_list <- list()
+
+    # Loop through pairs of consecutive x and y coordinates to calculate distance
+    for (i in seq(1, num_columns, 2)) {
+      col1 <- data_frame[[i]]
+      col2 <- data_frame[[i + 1]]
+      hypotenuses <- numeric(length(col1))
+
+      # Calculate hypotenuse (distance) between consecutive points
+      for (j in 2:length(col1)) {
+        hypotenuses[j] <- sqrt((col1[j] - col1[j - 1])^2 + (col2[j] - col2[j -
+          1])^2)
+      }
+
+      # Store calculated distances
+      hypotenuses_list[[i]] <- hypotenuses
+    }
+
+    # Combine the distances into a single dataframe and label columns accordingly
+    hypotenuses_df <- do.call(cbind, hypotenuses_list)
+    colnames(hypotenuses_df) <- paste0("Hypotenuse_", seq(1, num_columns, 2))
+    return(hypotenuses_df)
+  }
+
+  # Calculate the distance traveled in pixels (hypotenuse distance)
+  hypothenuse_distance_pixels <- calculate_pythagorean_hypotenuse_pairs(data)
+
+  # Save the hypotenuse distances to a CSV file with "_hypothenuse" added to the file name
+  file_name.h <- sub(".csv", "_hypothenuse.csv", basename(file_path))
+  full_file_path.h <- file.path(output_directory, file_name.h)
+  write.csv(hypothenuse_distance_pixels,
+    file = full_file_path.h,
+    row.names = FALSE
+  )
+
+  # Create a results dataframe to store summary metrics
+  results <- as.data.frame(na_counts)
+  names(results) <- "na_frames" # Rename the column for NA counts
+  results$used_frames <- used_frames # Add the number of non-NA frames
+
+  # Calculate time in seconds (assuming 30 frames per second)
+  results$time_s <- results$used_frames / 30
+
+  # Calculate the total distance traveled in pixels
+  calculate_sum_per_column <- function(data_frame) {
+    column_sums <- numeric(ncol(data_frame))
+    for (i in 1:ncol(data_frame)) {
+      column <- data_frame[[i]]
+      column_sums[i] <- sum(column, na.rm = TRUE) # Sum the distances, ignoring NA values
+    }
+    return(column_sums)
+  }
+  distance_pixels <- calculate_sum_per_column(as.data.frame(hypothenuse_distance_pixels))
+
+  # Remove rows where 'y' appears in the row names
+  rows_to_remove <- grep("y", rownames(results))
+  results <- results[-rows_to_remove, , drop = FALSE]
+
+  # Add the distance traveled (in pixels) to the results dataframe
+  results$distance_pixels <- distance_pixels
+
+  # Convert distance from pixels to millimeters (assuming 1 mm = 3 pixels)
+  results$distance_mm <- results$distance_pixels / 3
+
+  # Calculate speed in mm per second
+  results$speed_mm_per_seconds <- results$distance_mm / results$time_s
+
+  # Add metadata (e.g., ID from the row names)
+  results$ID <- rownames(results)
+
+  return(results)
+}
+
+# Set the working directory to where the raw data is stored
+setwd(
+  "~/Library/CloudStorage/OneDrive-UniversityofEastAnglia/PhD/Gum_Arabic/Gum Arabic shared folder/final_R/AI data/Raw_data/trajectories data_/without gaps"
+)
+
+# List all CSV files in the directory
+trajectories.list <- list.files(pattern = "*.csv")
+
+# Set the output directory where the processed files will be saved
+output_directory <- "~/Library/CloudStorage/OneDrive-UniversityofEastAnglia/PhD/Gum_Arabic/Gum Arabic shared folder/final_R/AI data/Processed_data/without_gaps"
+
+# Process each trajectory file, extract relevant metrics, and save the results as CSV
+for (file_path in trajectories.list) {
+  results <- process_trajectory(file_path) # Process the file and get the results
+
+  # Name the output file with "_GA" appended to the original file name
+  file_name <- sub(".csv", "_GA.csv", basename(file_path))
+  full_file_path <- file.path(output_directory, file_name)
+
+  # Save the results dataframe to a CSV file
+  write.csv(results, file = full_file_path, row.names = FALSE)
+}
+
+###################### Loading first and last 5 minutes of data ######################
+setwd(
+  "~/Library/CloudStorage/OneDrive-UniversityofEastAnglia/PhD/Gum_Arabic/Gum Arabic shared folder/final_R/AI data/Raw_data/trajectories data_/first_and_last_videos"
+)
+
+# List all CSV files for first and last 5 minutes of data
+trajectories.list <- list.files(pattern = "*.csv")
+
+# Set the output directory for processed first/last data
+output_directory <- "~/Library/CloudStorage/OneDrive-UniversityofEastAnglia/PhD/Gum_Arabic/Gum Arabic shared folder/final_R/AI data/Processed_data/first_last"
+
+# Process each trajectory file and save the results as CSV
+for (file_path in trajectories.list) {
+  results <- process_trajectory(file_path) # Process the file
+
+  # Name the output file with "_GA" appended
+  file_name <- sub(".csv", "_GA.csv", basename(file_path))
+  full_file_path <- file.path(output_directory, file_name)
+
+  # Save the results to a CSV file
+  write.csv(results, file = full_file_path, row.names = FALSE)
+}
+```
+
+### AI data Statistics
+```{r AI stats, echo=TRUE, message=FALSE, warning=FALSE}
+library(readr) # For reading CSV files
+library(dplyr) # For data manipulation
+library(RColorBrewer) # For color palettes
+library(patchwork) # For combining multiple ggplot2 plots
+library(ggplot2) # For data visualization
+library(shades) # For working with colors in R
+library(ggbeeswarm) # For creating bee swarm plots
+library(introdataviz) # Data visualization package for R (from psyteachr)
+library(ggpubr) # For publication-ready ggplot2 themes and utilities
+library(lme4) # For linear and generalized linear mixed-effects models
+library(car) # Companion to applied regression; offers hypothesis testing functions
+library(emmeans) # For estimated marginal means and pairwise comparisons
+library(glmmTMB) # Generalized linear mixed models using Template Model Builder
+library(tidyr) # For data tidying and transformation
+library(ggpubr) # For combining and annotating plots
+####################################################################################################
+# MAKING GRAPHS
+
+# Set the working directory where processed data is stored
+setwd(
+  "~/Library/CloudStorage/OneDrive-UniversityofEastAnglia/PhD/Gum_Arabic/Gum Arabic shared folder/final_R/AI data/Processed_data/without_gaps"
+)
+
+# Load processed result files (all files with "*GA.csv" in the name)
+results.list <- list.files(pattern = "*GA.csv")
+data <- lapply(results.list, read_csv) # Read all CSV files into a list
+names(data) <- results.list # Name each dataset in the list according to the file name
+
+# Merge all data into one dataframe and extract "Block" and "Treatment" from the file names
+merged_data <- bind_rows(data, .id = "data_frame_name") %>%
+  mutate(data_frame_name = sub("(_trajectories_GA\\.csv)$", "", data_frame_name)) %>% # Remove suffix
+  separate(
+    data_frame_name,
+    into = c("Block", "Treatment", "video_trim"),
+    sep = "_"
+  ) # Split the name into components
+
+# Combine "Block" and "video_trim" into new columns "video_id" and "ID" to create unique identifiers
+merged_data$video_id <- paste(merged_data$Block, merged_data$video_trim, sep = "_")
+merged_data$ID <- paste(merged_data$Block,
+  merged_data$video_trim,
+  merged_data$ID,
+  sep = "_"
+)
+
+# Create a new variable "video_trim_group" to categorize "video_trim" into three groups: "f5", "l5", or "5"
+merged_data$video_trim_group <- ifelse(merged_data$video_trim %in% c("f5", "l5"),
+  merged_data$video_trim,
+  "5"
+)
+
+# Function to check for overdispersion in models; returns ratio > 1.10 if overdispersed
+overdisp <- function(model) {
+  rdf <- df.residual(model) # Residual degrees of freedom
+  rp <- residuals(model, type = "pearson") # Pearson residuals
+  Pearson.chisq <- sum(rp^2) # Pearson Chi-Square
+  prat <- Pearson.chisq / rdf # Overdispersion ratio
+  pval <- pchisq(Pearson.chisq, df = rdf, lower.tail = FALSE) # P-value
+  c(
+    chisq = Pearson.chisq,
+    ratio = prat,
+    rdf = rdf,
+    p = pval
+  ) # Return results
+}
+
+# Create a new "observation" column as a unique identifier for each row in the data
+merged_data$observation <- 1:nrow(merged_data)
+
+# Filter the data to include only records where "video_trim_group" is equal to "5"
+merged_data.5 <- filter(merged_data, video_trim_group %in% "5")
+
+# Rescale distance_mm to the range [0, 1]
+merged_data.5$distance_mm_scaled <- (merged_data.5$distance_mm - min(merged_data.5$distance_mm)) /
+  (max(merged_data.5$distance_mm) - min(merged_data.5$distance_mm))
+
+### Distance model ###
+
+# Model 1: Distance (mm) as a function of Treatment, with Block as a random effect
+modeldistance.mm <- lmer(
+  distance_mm ~ Treatment + (1 |
+    Block),
+  data = merged_data.5,
+  na.action = na.omit
+)
+
+# Model 2: Distance (mm) with Treatment, Block as a random effect, and speed (mm/second) as a fixed effect
+modeldistance.mm_1 <- lmer(
+  distance_mm ~ Treatment + (1 |
+    Block) + speed_mm_per_seconds,
+  data = merged_data.5,
+  na.action = na.omit
+)
+
+# Model 3: Distance (mm) with random effects for Block and ID
+modeldistance.mm_2 <- lmer(
+  distance_mm ~ Treatment + (1 |
+    Block) + (1 | ID),
+  data = merged_data.5,
+  na.action = na.omit
+)
+
+# Model 4: Distance (mm) with Block, speed as fixed, and ID as a random effect
+modeldistance.mm_3 <- lmer(
+  distance_mm ~ Treatment + (1 |
+    Block) + speed_mm_per_seconds + (1 |
+    ID),
+  data = merged_data.5,
+  na.action = na.omit
+)
+
+# Model 5: Same as Model 4 but using scaled distance (distance_mm_scaled)
+modeldistance.mm_4 <- lmer(
+  distance_mm_scaled ~ Treatment + (1 |
+    Block) + speed_mm_per_seconds + (1 |
+    ID),
+  data = merged_data.5,
+  na.action = na.omit
+)
+
+# Compare models using ANOVA to test if adding variables improves the model fit
+anova(modeldistance.mm, modeldistance.mm_1) # Compare models 1 and 2
+anova(modeldistance.mm_2, modeldistance.mm_1) # Compare models 2 and 3
+anova(modeldistance.mm_3, modeldistance.mm_2) # Compare models 3 and 4
+anova(modeldistance.mm_3, modeldistance.mm_4) # Compare models 4 and 5 (no overdispersion allowed in Gaussian models)
+
+# Summary of the selected model (modeldistance.mm_3)
+summary(modeldistance.mm_3)
+
+# ANOVA for model distance with Type III sum of squares
+Anova(modeldistance.mm_3, Type = "III") # Check for significant differences
+
+# Pairwise comparisons of Treatment levels using Tukey's adjustment
+emmeans(modeldistance.mm_3, list(pairwise ~ Treatment), adjust = "tukey")
+
+#### Speed model ####
+
+# Model 1: Speed (mm/second) as a function of Treatment with Block as a random effect
+modelspeed <- lmer(
+  speed_mm_per_seconds ~ Treatment + (1 |
+    Block),
+  data = merged_data.5,
+  na.action = na.omit
+)
+
+# Model 2: Speed with Treatment, Block as a random effect, and scaled distance as a fixed effect
+modelspeed.1 <- lmer(
+  speed_mm_per_seconds ~ Treatment + (1 |
+    Block) + distance_mm_scaled,
+  data = merged_data.5,
+  na.action = na.omit
+)
+
+# Model 3: Speed with Block, distance as fixed effect, and ID as a random effect
+modelspeed.2 <- lmer(
+  speed_mm_per_seconds ~ Treatment + (1 |
+    Block) + distance_mm_scaled + (1 |
+    ID),
+  data = merged_data.5,
+  na.action = na.omit
+)
+
+# Compare speed models using ANOVA
+anova(modelspeed, modelspeed.1) # Compare models 1 and 2
+anova(modelspeed.2, modelspeed.1) # Compare models 2 and 3
+
+# Summary of the selected speed model (modelspeed.1)
+summary(modelspeed.1)
+
+# ANOVA for the speed model with Type III sum of squares
+Anova(modelspeed.1, Type = "III") # Check for significant differences
+
+# Pairwise comparisons of Treatment levels using Tukey's adjustment
+emmeans(modelspeed.1, list(pairwise ~ Treatment), adjust = "tukey")
+```
+
+### AI Graphs 
+
+```{r AI graphs, echo=TRUE, message=FALSE, warning=FALSE}
+library(readr) # For reading and writing tabular data (e.g., CSV files)
+library(dplyr) # For data manipulation and transformation (e.g., filtering, summarizing)
+library(tidyr) # For tidying data, such as reshaping data frames (e.g., pivoting, uniting columns)
+library(ggplot2) # For creating and customizing plots
+library(shades) # For color scaling and palettes to enhance plots
+library(RColorBrewer) # For additional color palettes (e.g., Brewer palettes)
+library(ggbeeswarm) # For creating beeswarm plots (visualization of distribution)
+library(introdataviz) # For enhanced plotting functions and visualization aids (e.g., ggplot2 extensions)
+library(ggpubr) # For combining and annotating plots
+library(patchwork) # For combining multiple plots into a single figure (e.g., layout management)
+
+
+
+# Set the working directory
+setwd(
+  "~/Library/CloudStorage/OneDrive-UniversityofEastAnglia/PhD/Gum_Arabic/Gum Arabic shared folder/final_R/AI data/Processed_data/without_gaps"
+)
+
+# Load the data
+results.list <- list.files(pattern = "*GA.csv")
+data <- lapply(results.list, read_csv)
+names(data) <- results.list
+
+# Prepare the data
+merged_data <- bind_rows(data, .id = "data_frame_name") %>%
+  mutate(data_frame_name = sub("(_trajectories_GA\\.csv)$", "", data_frame_name)) %>%
+  separate(
+    data_frame_name,
+    into = c("Block", "Treatment", "video_trim"),
+    sep = "_"
+  ) %>%
+  mutate(
+    video_id = paste(Block, video_trim, sep = "_"),
+    ID = paste(Block, video_trim, ID, sep = "_"),
+    video_trim_group = ifelse(video_trim %in% c("f5", "l5"), video_trim, "5")
+  )
+
+
+####################### Total Distance Plots #######################
+
+# Half Violin Plot - Total Distance
+p_dist <- merged_data %>%
+  ggplot(aes(
+    y = distance_mm,
+    x = Treatment,
+    fill = Treatment,
+    colour = Treatment
+  )) +
+  geom_jitter(
+    aes(shape = Treatment, color = Treatment),
+    position = position_jitter(0.2),
+    size = 3,
+    alpha = 0.1,
+    show.legend = FALSE
+  ) +
+  introdataviz::geom_split_violin(alpha = 0.3, trim = FALSE) +
+  stat_summary(
+    fun.data = "mean_se",
+    geom = "errorbar",
+    size = 0.7,
+    width = 0.08
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    size = 1,
+    alpha = 1
+  ) +
+  scale_x_discrete(name = "Treatment") +
+  scale_y_continuous(name = "Total distance (mm)") +
+  scale_fill_manual(values = saturation(pal7(2), scalefac(1.2))) +
+  scale_colour_manual(values = saturation(pal7.1(2), scalefac(1.2))) +
+  theme_classic2()
+
+p_dist
+
+# Save Total Distance Violin Plot
+ggsave(
+  paste0(output_directory, "/totaldist.jpeg"),
+  p_dist,
+  width = 6,
+  height = 4,
+  dpi = 600
+)
+
+# Raincloud Plot - Total Distance
+rain_height <- 0.1
+dist_rain <- merged_data %>%
+  filter(video_trim_group == "5") %>%
+  ggplot(aes(
+    y = distance_mm,
+    x = "",
+    fill = Treatment,
+    colour = Treatment
+  )) +
+  introdataviz::geom_flat_violin(
+    trim = FALSE,
+    alpha = 0.4,
+    position = position_nudge(x = rain_height + 0.05)
+  ) +
+  geom_jitter(
+    aes(shape = Treatment, color = Treatment),
+    size = 2,
+    alpha = 0.5,
+    position = position_jitter(width = rain_height, height = 0),
+    show.legend = FALSE
+  ) +
+  geom_boxplot(
+    width = rain_height,
+    alpha = 0.4,
+    position = position_nudge(x = -rain_height * 2),
+    show.legend = FALSE,
+    outlier.shape = NA
+  ) +
+  stat_summary(
+    fun.data = "mean_se",
+    geom = "errorbar",
+    size = 0.8,
+    width = 0.05,
+    mapping = aes(color = Treatment),
+    show.legend = FALSE,
+    position = position_nudge(x = rain_height * 3)
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    size = 1.5,
+    alpha = 1,
+    mapping = aes(color = Treatment),
+    show.legend = FALSE,
+    position = position_nudge(x = rain_height * 3)
+  ) +
+  scale_y_continuous(name = "Total Distance (mm)") +
+  coord_flip() +
+  scale_fill_manual(
+    values = saturation(pal7.1(2), scalefac(1.2)),
+    name = "",
+    labels = c("Control", "60% Gum Arabic")
+  ) +
+  scale_colour_manual(
+    values = saturation(pal7.1(2), scalefac(1.2)),
+    name = "",
+    labels = c("Control", "60% Gum Arabic")
+  ) +
+  scale_x_discrete(name = NULL) +
+  theme_classic2() +
+  theme(
+    legend.text = element_text(face = "bold", size = 15),
+    axis.text.x = element_text(face = "bold", size = 15),
+    axis.title.x = element_text(face = "bold", size = 15)
+  )
+
+# Save Raincloud Plot - Total Distance
+ggsave(
+  paste0(output_directory, "/totaldist_rain.jpeg"),
+  dist_rain,
+  width = 6,
+  height = 4,
+  dpi = 600
+)
+
+####################### Speed Plots #######################
+
+# Half Violin Plot - Speed
+p_speed <- merged_data %>%
+  ggplot(aes(
+    y = speed_mm_per_seconds,
+    x = Treatment,
+    fill = Treatment,
+    colour = Treatment
+  )) +
+  geom_jitter(
+    aes(shape = Treatment, color = Treatment),
+    position = position_jitter(0.2),
+    size = 3,
+    alpha = 0.2,
+    show.legend = FALSE
+  ) +
+  introdataviz::geom_split_violin(
+    alpha = 0.3,
+    trim = FALSE,
+    show.legend = FALSE
+  ) +
+  stat_summary(
+    fun.data = "mean_se",
+    geom = "errorbar",
+    size = 0.8,
+    width = 0.1,
+    show.legend = FALSE
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    size = 1.5,
+    alpha = 1,
+    show.legend = FALSE
+  ) +
+  scale_x_discrete(name = "Treatment") +
+  scale_y_continuous(name = "Speed (mm/s)") +
+  scale_fill_manual(values = saturation(pal7.1(2), scalefac(1.2))) +
+  scale_colour_manual(values = saturation(pal7.1(2), scalefac(1.2))) +
+  theme_classic2()
+
+p_speed
+
+# Save Half Violin Plot - Speed
+ggsave(
+  paste0(output_directory, "/speed.jpeg"),
+  p_speed,
+  width = 6,
+  height = 4,
+  dpi = 600
+)
+
+# Raincloud Plot - Speed
+speed_rain <- merged_data %>%
+  filter(video_trim_group == "5") %>%
+  ggplot(aes(
+    y = speed_mm_per_seconds,
+    x = "",
+    fill = Treatment,
+    colour = Treatment
+  )) +
+  introdataviz::geom_flat_violin(
+    trim = FALSE,
+    alpha = 0.4,
+    position = position_nudge(x = rain_height + 0.05)
+  ) +
+  geom_jitter(
+    aes(shape = Treatment, color = Treatment),
+    size = 2,
+    alpha = 0.5,
+    position = position_jitter(width = rain_height, height = 0),
+    show.legend = FALSE
+  ) +
+  geom_boxplot(
+    width = rain_height,
+    alpha = 0.4,
+    position = position_nudge(x = -rain_height * 2),
+    show.legend = FALSE,
+    outlier.shape = NA
+  ) +
+  stat_summary(
+    fun.data = "mean_se",
+    geom = "errorbar",
+    size = 0.8,
+    width = 0.05,
+    mapping = aes(color = Treatment),
+    show.legend = FALSE,
+    position = position_nudge(x = rain_height * 3)
+  ) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    size = 1.5,
+    alpha = 1,
+    mapping = aes(color = Treatment),
+    show.legend = FALSE,
+    position = position_nudge(x = rain_height * 3)
+  ) +
+  scale_y_continuous(name = "Speed (mm/s)") +
+  coord_flip() +
+  scale_fill_manual(
+    values = saturation(pal7.1(2), scalefac(1.2)),
+    name = "",
+    labels = c("Control", "60% Gum Arabic")
+  ) +
+  scale_colour_manual(
+    values = saturation(pal7.1(2), scalefac(1.2)),
+    name = "",
+    labels = c("Control", "60% Gum Arabic")
+  ) +
+  scale_x_discrete(name = NULL) +
+  theme_classic2() +
+  theme(
+    legend.text = element_text(face = "bold", size = 15),
+    axis.text.x = element_text(face = "bold", size = 15),
+    axis.title.x = element_text(face = "bold", size = 15)
+  )
+
+# Save Raincloud Plot - Speed
+ggsave(
+  paste0(output_directory, "/speed_rain.jpeg"),
+  speed_rain,
+  width = 6,
+  height = 4,
+  dpi = 600
+)
+
+####################### Combine Plots #######################
+
+# Combine the Speed and Distance plots using patchwork
+combined_plot <- (p_speed) / (dist_rain) +
+  plot_layout(guides = "collect") +
+  plot_annotation(tag_levels = "A") &
+  theme(plot.tag = element_text(size = 15))
+
+print(combined_plot)
+# Save combined plots in different formats
+ggsave(
+  paste0(output_directory, "/AI_patchwork.png"),
+  combined_plot,
+  width = 20,
+  height = 20,
+  dpi = 600
+)
+ggsave(
+  paste0(output_directory, "/AI_patchwork.svg"),
+  combined_plot,
+  width = 20,
+  height = 20,
+  dpi = 600
+)
+ggsave(
+  paste0(output_directory, "/AI_patchwork.pdf"),
+  combined_plot,
+  width = 20,
+  height = 20,
+  dpi = 600
+)
+```
+
+
+
