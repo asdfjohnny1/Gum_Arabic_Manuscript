@@ -1,0 +1,614 @@
+---
+title: "DESeq 2 analsysis for Gum Arabic manuscript"
+author: "Justin Abi Assaf"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+####RNA-seq DESeq2 analysis###
+```{r}
+####load libraries     
+library("DESeq2")
+library("ggplot2")
+library("tidyverse")
+library("dplyr")
+library("plotly")
+library("pcaExplorer")
+library("biomaRt")
+library("pheatmap")
+
+###Upload the count data file and the sample file
+countData <- read.csv("salmon.merged.gene_counts.csv")
+colData <- read.csv("samplefile_RNAseq_UPDATEDVERSION.csv")
+
+#####For the colData => delete the first column of row names
+rownames(colData)
+rownames(colData) <- colData [,1]  
+rownames(colData)
+colData = subset(colData, select = -c(1) )
+
+#####For the countData => make the first column into rownames
+rownames(countData) <- countData [,1]  
+head(countData)
+countData = subset(countData, select = -c(1) )
+head(countData)
+rownames
+
+###run QC
+all(colnames(countData) %in% rownames(colData))
+all(colnames(countData) == rownames(colData))
+
+###create a DEseq2 object
+dds <- DESeqDataSetFromMatrix(countData = round(countData),
+                              colData = colData,
+                              design= ~ condition + sex)
+
+dds_condition <- DESeqDataSetFromMatrix(countData = round(countData),
+                                        colData = colData,
+                                        design= ~ condition)
+###filter
+keep <- rowSums(counts(dds)) >= 10
+dds <- dds[keep,]
+dds
+
+keep_condition <- rowSums(counts(dds_condition)) >= 10
+dds_condition <- dds_condition[keep_condition,]
+dds_condition
+
+###set a factor level based on condition=untreated
+dds$condition <- relevel(dds$condition, ref = "control")
+dds$condition
+
+
+###RUN and EXTRACT DEseq2 results
+dds <- DESeq(dds)
+results <- results(dds)
+results
+
+dds_condition <- DESeq(dds_condition)
+results_condition <- results(dds_condition)
+results_condition
+
+###Change the default and contrast the results based on condition
+results.specific.CONDITION <- results(dds, contrast=c("condition","treatment","control"))
+results.specific.CONDITION
+
+###summary of results
+summary(results.specific.CONDITION)
+summary(results_condition)
+###change the alpha=0.005
+results.specific.CONDITION_0.05 <- results(dds, contrast=c("condition","treatment","control"), alpha = 0.05)
+summary(results.specific.CONDITION_0.05)
+results.specific.CONDITION_0.05
+
+results_condition_alpha0.05 <- results(dds_condition, alpha = 0.05)
+results_condition_alpha0.05
+summary(results_condition_alpha0.05)
+
+####Exploratory plotting:
+###plotMA
+plotMA(results.specific.CONDITION_0.05, ylim = c(-5, 5))
+
+###PCA plot
+##Transform the count data using rlog and vst() (transform to log2 scale)
+rld <- rlog(dds)
+vst_transformed_data <- vst(dds, blind = FALSE)
+
+plotPCA(vst_transformed_data, intgroup = "sex", ntop = 300, returnData = TRUE)
+pcaData <- plotPCA(vst_transformed_data, intgroup=c("sex"), returnData=TRUE)
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+
+ggplot(pcaData, aes(PC1, PC2, color=sex,)) +
+  geom_point(size=3) +
+  scale_color_manual(values = c("purple", "orange")) +
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+  ylab(paste0("PC2: ",percentVar[2],"% variance")) + 
+  coord_fixed()
+###################################################################################
+plotPCA(vst_transformed_data, intgroup = c("condition"), returnData = TRUE)
+pcaData_ <- plotPCA(vst_transformed_data, intgroup=c("condition"), returnData=TRUE)
+percentVar_ <- round(100 * attr(pcaData_, "percentVar"))
+
+ggplot(pcaData_, aes(PC1, PC2, color = condition)) +
+  geom_point(size = 3) +
+  scale_color_brewer(palette = "Set1") +
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  coord_fixed() +
+  scale_color_discrete(breaks = c("control", "treatment"))
+#################################################################################################
+pcaData__ <- plotPCA(vst_transformed_data, intgroup=c("condition", "sex"), returnData=TRUE)
+percentVar__ <- round(100 * attr(pcaData__, "percentVar"))
+
+ggplot(pcaData__, aes(PC1, PC2, color=condition, shape=sex)) +
+  geom_point(size=3)+
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+  ylab(paste0("PC2: ",percentVar[2],"% variance")) + 
+  coord_fixed()
+
+########sort by adjusted p-values(from smallest)
+results.specific.condition0.05_sortedbypvalue <- results.specific.CONDITION_0.05[order(results.specific.CONDITION_0.05$padj),]
+head(results.specific.condition0.05_sortedbypvalue)
+
+plot(results.specific.CONDITION_0.05$log2FoldChange, -log10(results.specific.CONDITION_0.05$pvalue), pch=20, cex=0.6, main="Volcano plot", xlab="log2(fold change)", ylab="-log10(p-value)")
+abline(h=-log10(0.05), col="green3", lty=2)
+abline(v=c(-1,1), col="blue", lty=2)
+
+
+####Run Analysis for Control group only (1)
+
+
+###Upload the count data file and the sample file
+countData <- read.csv("salmon.merged.gene_counts.csv")
+colData <- read.csv("metafile_ControlsOnly.csv")
+
+#####For the colData => delete the first column of row names
+rownames(colData)
+rownames(colData) <- colData [,1]  
+rownames(colData)
+colData = subset(colData, select = -c(1) )
+
+#####For the countData => make the first column into rownames
+rownames(countData) <- countData [,1]  
+head(countData)
+countData = subset(countData, select = -c(1) )
+head(countData)
+rownames
+
+###run QC
+all(colnames(countData) %in% rownames(colData))
+all(colnames(countData) == rownames(colData))
+
+####Fix the errors
+colData <- colData[sample(1:nrow(colData)),]
+countData <- countData[, rownames(colData)]
+
+###create a DEseq2 object
+dds <- DESeqDataSetFromMatrix(countData = round(countData),
+                              colData = colData,
+                              design= ~ Sex)
+
+keep <- rowSums(counts(dds)) >= 10
+dds <- dds[keep,]
+dds
+
+###set a factor level based on condition=untreated
+dds$Sex <- relevel(dds$Sex, ref = "male")
+dds$Sex
+
+###RUN and EXTRACT DEseq2 results
+dds <- DESeq(dds)
+results <- results(dds, alpha=0.05)
+results
+
+###summary of results
+summary(results)
+
+###########sort by adjusted p-values(from smallest)
+results_sortedbypvalue <- results[order(results$padj),]
+head(results_sortedbypvalue)
+head(results_sortedbypvalue, 10)
+
+write.csv(results_sortedbypvalue, "Controlonly_output_femaleVSmale.csv")
+
+####Volcano plots
+volcanoPlot <- function(results, lfc=2, pval=0.05){
+  tab = data.frame(logFC = results$log2FoldChange, negLogPval = -log10(results$pvalue))
+  plot(tab, pch = 16, cex = 0.6, xlab = expression(log[2]~fold~change), ylab = expression(-log[10]~pvalue),main = "Female VS Male in control group")
+  signGenes = (abs(tab$logFC) > lfc & tab$negLogPval > -log10(pval))
+  points(tab[signGenes, ], pch = 16, cex = 0.8, col = "red") 
+  abline(h = -log10(pval), col = "green3", lty = 2) 
+  abline(v = c(-lfc, lfc), col = "blue", lty = 2) 
+  mtext(paste("pval =", pval), side = 4, at = -log10(pval), cex = 0.8, line = 0.5, las = 1) 
+  mtext(c(paste("-", lfc, "fold"), paste("+", lfc, "fold")), side = 3, at = c(-lfc, lfc), cex = 0.8, line = 0.5)
+}
+
+volcanoPlot(results)
+
+volcanoPlot <- function(results, lfc=2, padj=0.05){
+  tab = data.frame(logFC = results$log2FoldChange, negLogPval = -log10(results$padj))
+  plot(tab, pch = 16, cex = 0.6, xlab = expression(log[2]~fold~change), ylab = expression(-log[10]~padj),main = "Female VS Male in control group")
+  signGenes = (abs(tab$logFC) > lfc & tab$negLogPval > -log10(padj))
+  points(tab[signGenes, ], pch = 16, cex = 0.8, col = "red") 
+  abline(h = -log10(padj), col = "green3", lty = 2) 
+  abline(v = c(-lfc, lfc), col = "blue", lty = 2) 
+  mtext(paste("padj =", padj), side = 4, at = -log10(padj), cex = 0.8, line = 0.5, las = 1) 
+  mtext(c(paste("-", lfc, "fold"), paste("+", lfc, "fold")), side = 3, at = c(-lfc, lfc), cex = 0.8, line = 0.5)
+}
+
+volcanoPlot(results)
+
+
+
+
+volcanoPlot <- function(results, lfc = 2, pval = 0.1) {
+  tab <- data.frame(logFC = results$log2FoldChange, negLogPval = -log10(results$padj))
+  plot(tab, pch = 16, cex = 0.6, xlab = expression(log[2] ~ fold ~ change), ylab = expression(-log[10] ~ p.adjusted))
+  signGenes <- (abs(tab$logFC) > lfc & tab$negLogPval > -log10(pval))
+  points(tab[signGenes, ], pch = 16, cex = 0.8, col = "red")
+  abline(h = -log10(pval), col = "green3", lty = 2)
+  abline(v = c(-lfc, lfc), col = "blue", lty = 2)
+  mtext(paste("padj =", pval), side = 4, at = -log10(pval), cex = 0.8, line = 0.5, las = 1)
+  mtext(c(paste("-", lfc, "fold"), paste("+", lfc, "fold")), side = 3, at = c(-lfc, lfc), cex = 0.8, line = 0.5)
+}
+```
+
+
+
+####Run analysis for GA group only
+```{r}
+####load libraries     #####NB: might not use them all####
+library("DESeq2")
+library("ggplot2")
+library("tidyverse")
+library("dplyr")
+library("plotly")
+library("pcaExplorer")
+library("biomaRt")
+library("pheatmap")
+
+###Upload the count data file and the sample file
+countData <- read.csv("salmon.merged.gene_counts.csv")
+colData <- read.csv("metafile_GAOnly.csv")
+
+#####For the colData => delete the first column of row names
+rownames(colData)
+rownames(colData) <- colData [,1]  
+rownames(colData)
+colData = subset(colData, select = -c(1) )
+
+#####For the countData => make the first column into rownames
+rownames(countData) <- countData [,1]  
+head(countData)
+countData = subset(countData, select = -c(1) )
+head(countData)
+rownames
+
+###run QC
+all(colnames(countData) %in% rownames(colData))
+all(colnames(countData) == rownames(colData))
+
+####Fix the errors
+colData <- colData[sample(1:nrow(colData)),]
+countData <- countData[, rownames(colData)]
+
+###create a DEseq2 object
+dds <- DESeqDataSetFromMatrix(countData = round(countData),
+                              colData = colData,
+                              design= ~ Sex)
+
+keep <- rowSums(counts(dds)) >= 10
+dds <- dds[keep,]
+dds
+
+###set a factor level based on condition=untreated
+dds$Sex <- relevel(dds$Sex, ref = "male")
+dds$Sex
+
+###RUN and EXTRACT DEseq2 results
+dds <- DESeq(dds)
+results <- results(dds, alpha=0.05)
+results
+
+###summary of results
+summary(results)
+
+###########sort by adjusted p-values(from smallest)
+results_sortedbypvalue <- results[order(results$padj),]
+head(results_sortedbypvalue)
+head(results_sortedbypvalue, 10)
+
+write.csv(results_sortedbypvalue, "GAonly_output_femaleVSmale.csv")
+
+
+
+
+####Volcano plots
+volcanoPlot <- function(results, lfc=2, pval=0.05){
+  tab = data.frame(logFC = results$log2FoldChange, negLogPval = -log10(results$pvalue))
+  plot(tab, pch = 16, cex = 0.6, xlab = expression(log[2]~fold~change), ylab = expression(-log[10]~pvalue),main = "Female VS Male in experimental group")
+  signGenes = (abs(tab$logFC) > lfc & tab$negLogPval > -log10(pval))
+  points(tab[signGenes, ], pch = 16, cex = 0.8, col = "red") 
+  abline(h = -log10(pval), col = "green3", lty = 2) 
+  abline(v = c(-lfc, lfc), col = "blue", lty = 2) 
+  mtext(paste("pval =", pval), side = 4, at = -log10(pval), cex = 0.8, line = 0.5, las = 1) 
+  mtext(c(paste("-", lfc, "fold"), paste("+", lfc, "fold")), side = 3, at = c(-lfc, lfc), cex = 0.8, line = 0.5)
+}
+
+volcanoPlot(results)
+
+volcanoPlot <- function(results, lfc=2, padj=0.05){
+  tab = data.frame(logFC = results$log2FoldChange, negLogPval = -log10(results$padj))
+  plot(tab, pch = 16, cex = 0.6, xlab = expression(log[2]~fold~change), ylab = expression(-log[10]~padj),main = "Female VS Male in experimental group")
+  signGenes = (abs(tab$logFC) > lfc & tab$negLogPval > -log10(padj))
+  points(tab[signGenes, ], pch = 16, cex = 0.8, col = "red") 
+  abline(h = -log10(padj), col = "green3", lty = 2) 
+  abline(v = c(-lfc, lfc), col = "blue", lty = 2) 
+  mtext(paste("padj =", padj), side = 4, at = -log10(padj), cex = 0.8, line = 0.5, las = 1) 
+  mtext(c(paste("-", lfc, "fold"), paste("+", lfc, "fold")), side = 3, at = c(-lfc, lfc), cex = 0.8, line = 0.5)
+}
+
+volcanoPlot(results)
+```
+
+
+####Run analysis for females only 
+```{r}
+####load libraries     #####NB: might not use them all####
+library("DESeq2")
+library("ggplot2")
+library("tidyverse")
+library("dplyr")
+library("plotly")
+library("pcaExplorer")
+library("biomaRt")
+library("pheatmap")
+
+rm(list=ls())
+
+###set working directory and upload files
+setwd("C:/Users/gyh19apu/OneDrive - University of East Anglia/EDESIA PhD_Year 1/Justin_UEA/60% GA RNAseq/star_salmon files/output files")
+
+countData <- read.csv("salmon.merged.gene_counts_FEMALES.csv")
+colData <- read.csv("metafile_FemalesOnly.csv")
+
+#####For the colData => delete the first column of row names
+rownames(colData)
+rownames(colData) <- colData [,1]  
+rownames(colData)
+colData = subset(colData, select = -c(1) )
+
+#####For the countData => make the first column into rownames
+rownames(countData) <- countData [,1]  
+head(countData)
+countData = subset(countData, select = -c(1) )
+head(countData)
+rownames
+
+###run QC
+all(colnames(countData) %in% rownames(colData))
+all(colnames(countData) == rownames(colData))
+
+###correct the error
+all(colnames(countData) == rownames(colData))
+countData <- countData[, rownames(colData)]
+
+###create a DEseq2 object
+dds <- DESeqDataSetFromMatrix(countData = round(countData),
+                              colData = colData,
+                              design= ~ Condition)
+
+keep <- rowSums(counts(dds)) >= 10
+dds <- dds[keep,]
+dds
+
+###set a factor level based on condition=untreated
+dds$Condition <- relevel(dds$Condition, ref = "control")
+dds$Condition
+
+###RUN and EXTRACT DEseq2 results
+dds <- DESeq(dds)
+results <- results(dds)
+results
+
+###summary of results
+summary(results)
+###########sort by adjusted p-values(from smallest)
+results_sortedbypvalue <- results[order(results$padj),]
+head(results_sortedbypvalue)
+head(results_sortedbypvalue, 10)
+write.csv(results_sortedbypvalue, "ExperimentalVSControl_femalesOnly.csv")
+###alpha<0.05
+results_0.05 <- results(dds, alpha =0.05)
+summary(results_0.05)
+
+plotMA(results, ylim = c(-20, 20))
+
+?DESeqDataSetFromMatrix
+
+
+
+
+####Volcano plots
+volcanoPlot <- function(results, lfc=2, pval=0.05){
+  tab = data.frame(logFC = results$log2FoldChange, negLogPval = -log10(results$pvalue))
+  plot(tab, pch = 16, cex = 0.6, xlab = expression(log[2]~fold~change), ylab = expression(-log[10]~pvalue),main = "Experimental VS Control in females only")
+  signGenes = (abs(tab$logFC) > lfc & tab$negLogPval > -log10(pval))
+  points(tab[signGenes, ], pch = 16, cex = 0.8, col = "red") 
+  abline(h = -log10(pval), col = "green3", lty = 2) 
+  abline(v = c(-lfc, lfc), col = "blue", lty = 2) 
+  mtext(paste("pval =", pval), side = 4, at = -log10(pval), cex = 0.8, line = 0.5, las = 1) 
+  mtext(c(paste("-", lfc, "fold"), paste("+", lfc, "fold")), side = 3, at = c(-lfc, lfc), cex = 0.8, line = 0.5)
+}
+
+volcanoPlot(results)
+
+volcanoPlot <- function(results, lfc=2, padj=0.05){
+  tab = data.frame(logFC = results$log2FoldChange, negLogPval = -log10(results$padj))
+  plot(tab, pch = 16, cex = 0.6, xlab = expression(log[2]~fold~change), ylab = expression(-log[10]~padj),main = "Experimental VS Control in females only")
+  signGenes = (abs(tab$logFC) > lfc & tab$negLogPval > -log10(padj))
+  points(tab[signGenes, ], pch = 16, cex = 0.8, col = "red") 
+  abline(h = -log10(padj), col = "green3", lty = 2) 
+  abline(v = c(-lfc, lfc), col = "blue", lty = 2) 
+  mtext(paste("padj =", padj), side = 4, at = -log10(padj), cex = 0.8, line = 0.5, las = 1) 
+  mtext(c(paste("-", lfc, "fold"), paste("+", lfc, "fold")), side = 3, at = c(-lfc, lfc), cex = 0.8, line = 0.5)
+}
+
+volcanoPlot(results)
+```
+
+
+####Run analysis for males only
+```{r}
+####load libraries     #####NB: might not use them all####
+library("DESeq2")
+library("ggplot2")
+library("tidyverse")
+library("dplyr")
+library("plotly")
+library("pcaExplorer")
+library("biomaRt")
+library("pheatmap")
+
+
+###set working directory and upload files
+setwd("C:/Users/gyh19apu/OneDrive - University of East Anglia/EDESIA PhD_Year 1/Justin_UEA/60% GA RNAseq/star_salmon files/output files")
+
+countData <- read.csv("salmon.merged.gene_counts_MALES.csv")
+colData <- read.csv("metafile_MalesOnly.csv")
+
+#####For the colData => delete the first column of row names
+rownames(colData)
+rownames(colData) <- colData [,1]  
+rownames(colData)
+colData = subset(colData, select = -c(1) )
+
+#####For the countData => make the first column into rownames
+rownames(countData) <- countData [,1]  
+head(countData)
+countData = subset(countData, select = -c(1) )
+head(countData)
+rownames
+
+###run QC
+all(colnames(countData) %in% rownames(colData))
+all(colnames(countData) == rownames(colData))
+
+###correct the error
+all(colnames(countData) == rownames(colData))
+countData <- countData[, rownames(colData)]
+
+###create a DEseq2 object
+dds <- DESeqDataSetFromMatrix(countData = round(countData),
+                              colData = colData,
+                              design= ~ Condition)
+
+keep <- rowSums(counts(dds)) >= 10
+dds <- dds[keep,]
+dds
+
+###set a factor level based on condition=untreated
+dds$Condition <- relevel(dds$Condition, ref = "control")
+dds$Condition
+
+###RUN and EXTRACT DEseq2 results
+dds <- DESeq(dds)
+results <- results(dds)
+results
+
+###summary of results
+summary(results)
+
+###alpha<0.05
+results_0.05 <- results(dds, alpha =0.05)
+summary(results_0.05)
+
+###########sort by adjusted p-values(from smallest)
+results_sortedbypvalue <- results[order(results$padj),]
+head(results_sortedbypvalue)
+head(results_sortedbypvalue, 10)
+
+write.csv(results_sortedbypvalue, "ExperimentalVSControl_malesOnly.csv")
+
+
+
+####Volcano plots
+volcanoPlot <- function(results, lfc=2, pval=0.05){
+  tab = data.frame(logFC = results$log2FoldChange, negLogPval = -log10(results$pvalue))
+  plot(tab, pch = 16, cex = 0.6, xlab = expression(log[2]~fold~change), ylab = expression(-log[10]~pvalue),main = "Experimental VS Control in males only")
+  signGenes = (abs(tab$logFC) > lfc & tab$negLogPval > -log10(pval))
+  points(tab[signGenes, ], pch = 16, cex = 0.8, col = "red") 
+  abline(h = -log10(pval), col = "green3", lty = 2) 
+  abline(v = c(-lfc, lfc), col = "blue", lty = 2) 
+  mtext(paste("pval =", pval), side = 4, at = -log10(pval), cex = 0.8, line = 0.5, las = 1) 
+  mtext(c(paste("-", lfc, "fold"), paste("+", lfc, "fold")), side = 3, at = c(-lfc, lfc), cex = 0.8, line = 0.5)
+}
+
+volcanoPlot(results)
+
+volcanoPlot <- function(results, lfc=2, padj=0.05){
+  tab = data.frame(logFC = results$log2FoldChange, negLogPval = -log10(results$padj))
+  plot(tab, pch = 16, cex = 0.6, xlab = expression(log[2]~fold~change), ylab = expression(-log[10]~padj),main = "Experimental VS Control in males only")
+  signGenes = (abs(tab$logFC) > lfc & tab$negLogPval > -log10(padj))
+  points(tab[signGenes, ], pch = 16, cex = 0.8, col = "red") 
+  abline(h = -log10(padj), col = "green3", lty = 2) 
+  abline(v = c(-lfc, lfc), col = "blue", lty = 2) 
+  mtext(paste("padj =", padj), side = 4, at = -log10(padj), cex = 0.8, line = 0.5, las = 1) 
+  mtext(c(paste("-", lfc, "fold"), paste("+", lfc, "fold")), side = 3, at = c(-lfc, lfc), cex = 0.8, line = 0.5)
+}
+
+volcanoPlot(results)
+```
+
+
+####Run analysis with interaction term (Condition ~ sex) 
+```{r}
+####load libraries     #####NB: might not use them all####
+library("DESeq2")
+library("ggplot2")
+library("tidyverse")
+library("dplyr")
+library("plotly")
+library("pcaExplorer")
+library("biomaRt")
+library("pheatmap")
+
+###Upload the count data file and the sample file
+countData <- read.csv("salmon.merged.gene_counts.csv")
+colData <- read.csv("metafile_samplesheet_UPDATED.csv")
+
+
+#####For the colData => delete the first column of row names
+rownames(colData)
+rownames(colData) <- colData [,1]  
+rownames(colData)
+colData = subset(colData, select = -c(1) )
+
+#####For the countData => make the first column into rownames
+rownames(countData) <- countData [,1]  
+head(countData)
+countData = subset(countData, select = -c(1) )
+head(countData)
+rownames
+
+###run QC
+all(colnames(countData) %in% rownames(colData))
+all(colnames(countData) == rownames(colData))
+
+###create a DEseq2 object
+dds <- DESeqDataSetFromMatrix(countData = round(countData),
+                              colData = colData,
+                              design= ~ Condition + Sex)
+
+keep <- rowSums(counts(dds)) >= 10
+dds <- dds[keep,]
+dds
+
+###set a factor level based on condition=untreated
+dds$Condition <- relevel(dds$Condition, ref = "control")
+dds$Condition
+
+###RUN and EXTRACT DEseq2 results
+dds <- DESeq(dds)
+results <- results(dds)
+results
+
+###summary of results
+summary(results)
+
+res <- results(dds, contrast=c("Condition","experimental","control"), alpha=0.05) ####results for the "Condition"
+res
+summary(res)
+
+resOrdered <- res[order(res$pvalue),]
+resOrdered
+sum(res$padj < 0.05, na.rm=TRUE)
+
+#####For each analysis, seperate raw files were uploaded and reanalysed. 
+
+
+```
